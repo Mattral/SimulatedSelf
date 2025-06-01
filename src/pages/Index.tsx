@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
@@ -18,14 +17,14 @@ const Index = () => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           entry.target.classList.add('animate-fade-in');
-          entry.target.style.opacity = '1';
+          (entry.target as HTMLElement).style.opacity = '1';
         }
       });
     }, { threshold: 0.1 });
     
     sections.forEach(section => {
       if (section.id !== 'home') {
-        section.style.opacity = '0';
+        (section as HTMLElement).style.opacity = '0';
         observer.observe(section);
       }
     });
