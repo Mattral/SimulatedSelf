@@ -1,69 +1,45 @@
-# Welcome to your Lovable project
+# Simulated Self (Human-Robot Interaction)
 
-## Project info
+**Coming Soon**
 
-**URL**: https://lovable.dev/projects/0f513d2e-b232-4852-8123-0735fafc1027
+---
 
-## How can I edit this code?
+## Overview
 
-There are several ways of editing your application.
+**Simulated Self** is an innovative, real-time humanoid robot experience that uses your camera to capture and mirror your body movements. Designed to enable immersive human-robot interaction, it combines advanced pose recognition, gesture mapping, and responsive digital embodiment to create a seamless, interactive experience.
 
-**Use Lovable**
+Through this system, your physical movements are tracked and reflected by a lifelike robot avatar, bridging the gap between humans and digital agents.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0f513d2e-b232-4852-8123-0735fafc1027) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## Key Features
 
-**Use your preferred IDE**
+- **Real-time Pose Recognition:** Accurately captures your full-body posture using camera input.
+- **Gesture Mapping:** Translates your hand and body gestures into humanoid robot actions.
+- **Responsive Embodiment:** The robot dynamically mimics your movements for immersive interaction.
+- **Facial Expression Detection:** Recognizes and responds to your emotional expressions.
+- **Voice Interaction:** Supports spoken input and outputs brief, conversational voice responses powered by Google Gemini LLM.
+- **Anatomically Improved Robot Model:** Enhanced shoulder and head design for realistic human-like appearance and motion.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Getting Started
 
-Follow these steps:
+*Details coming soon.*
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+---
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Technology Stack
 
-# Step 3: Install the necessary dependencies.
-npm i
+- *Details coming soon.*
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+---
 
-**Edit a file directly in GitHub**
+## License
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+*Details coming soon.*
 
-**Use GitHub Codespaces**
+---
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/0f513d2e-b232-4852-8123-0735fafc1027) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+*Simulated Self aims to redefine human-robot interaction through real-time embodiment and AI-enhanced communication.*

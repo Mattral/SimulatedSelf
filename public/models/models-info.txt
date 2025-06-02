@@ -1,0 +1,15 @@
+
+This directory should contain the face-api.js models.
+Please create a 'models' folder in the public directory and download the following files from the face-api.js repository:
+
+Required models for emotion detection:
+- tiny_face_detector_model-weights_manifest.json
+- tiny_face_detector_model-shard1
+- face_landmark_68_model-weights_manifest.json
+- face_landmark_68_model-shard1
+- face_expression_model-weights_manifest.json
+- face_expression_model-shard1
+
+Download from: https://github.com/justadudewhohacks/face-api.js/tree/master/weights
+
+Note: These models are required for facial emotion detection to work properly.
