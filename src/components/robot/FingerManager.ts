@@ -67,30 +67,83 @@ export class FingerManager {
     const handLandmarks = this.fingerLandmarks[handName];
     
     if (handLandmarks) {
+      // Calculate hand rotation from landmarks
+      const handRotation = this.calculateHandRotation(hand);
+      
       hand.forEach((landmark, landmarkIndex) => {
         if (landmarkIndex < handLandmarks.length) {
           const landmarkPos = this.convertLandmarkToWorldPosition(landmark);
           
           if (landmarkIndex === 0) {
+            // Position wrist at body wrist position
             handLandmarks[landmarkIndex].position.copy(wristPos);
+            // Apply calculated rotation to wrist (palm)
+            handLandmarks[landmarkIndex].rotation.copy(handRotation);
           } else {
             const wristLandmark = hand[0];
             const wristLandmarkPos = this.convertLandmarkToWorldPosition(wristLandmark);
             const offset = new THREE.Vector3().subVectors(landmarkPos, wristLandmarkPos);
             
+            // Apply hand rotation to finger positions
+            offset.applyEuler(handRotation);
             offset.multiplyScalar(0.8);
             handLandmarks[landmarkIndex].position.copy(wristPos).add(offset);
+            
+            // Apply rotation to each finger landmark for proper orientation
+            handLandmarks[landmarkIndex].rotation.copy(handRotation);
           }
           
           handLandmarks[landmarkIndex].visible = true;
         }
       });
 
-      this.createFingerConnections(hand, handName, wristPos);
+      this.createFingerConnections(hand, handName, wristPos, handRotation);
     }
   }
 
-  private createFingerConnections(hand: Landmark[], handName: string, basePosition: THREE.Vector3) {
+  private calculateHandRotation(hand: Landmark[]): THREE.Euler {
+    if (hand.length < 21) return new THREE.Euler(0, 0, 0);
+
+    // Key landmarks for orientation calculation
+    const wrist = hand[0];
+    const middleFingerMcp = hand[9];
+    const indexFingerMcp = hand[5];
+    const pinkyMcp = hand[17];
+
+    // Convert to world positions
+    const wristPos = this.convertLandmarkToWorldPosition(wrist);
+    const middlePos = this.convertLandmarkToWorldPosition(middleFingerMcp);
+    const indexPos = this.convertLandmarkToWorldPosition(indexFingerMcp);
+    const pinkyPos = this.convertLandmarkToWorldPosition(pinkyMcp);
+
+    // Calculate vectors for orientation
+    const palmForward = new THREE.Vector3().subVectors(middlePos, wristPos).normalize();
+    const palmSide = new THREE.Vector3().subVectors(indexPos, pinkyPos).normalize();
+    const palmNormal = new THREE.Vector3().crossVectors(palmSide, palmForward).normalize();
+
+    // Create rotation matrix from these vectors
+    const rotationMatrix = new THREE.Matrix3();
+    rotationMatrix.set(
+      palmSide.x, palmForward.x, palmNormal.x,
+      palmSide.y, palmForward.y, palmNormal.y,
+      palmSide.z, palmForward.z, palmNormal.z
+    );
+
+    // Convert to Euler angles
+    const rotation = new THREE.Euler();
+    rotation.setFromRotationMatrix(new THREE.Matrix4().setFromMatrix3(rotationMatrix));
+
+    // Apply additional correction for palm orientation
+    const correctionRotation = new THREE.Euler(
+      rotation.x + Math.PI / 6,  // Slight tilt correction
+      rotation.y,
+      rotation.z
+    );
+
+    return correctionRotation;
+  }
+
+  private createFingerConnections(hand: Landmark[], handName: string, basePosition: THREE.Vector3, handRotation: THREE.Euler) {
     // Clear existing connections
     this.fingerConnections[handName].forEach(connection => {
       if (connection) this.group.remove(connection);
