@@ -21,7 +21,7 @@ export const useAdvancedEmotionDetection = () => {
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const emotionHistoryRef = useRef<EmotionData[]>([]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isModelsLoadedRef = useRef(false);

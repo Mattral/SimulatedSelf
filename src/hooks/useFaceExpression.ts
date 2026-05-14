@@ -20,7 +20,7 @@ export const useFaceExpression = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const analysisIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const analysisIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Simple face expression analysis using basic face detection
   const analyzeFaceExpression = useCallback(async (videoElement: HTMLVideoElement) => {
