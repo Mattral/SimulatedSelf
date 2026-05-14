@@ -198,8 +198,8 @@ const Index = () => {
   {showControlPanel && <div className="bg-black/80 backdrop-blur-sm rounded-lg p-4 space-y-3 shadow-lg z-40">
       {/* Main Controls */}
       <div className="flex gap-2">
-        <button onClick={handleMicToggle} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-red-500 hover:bg-red-600 animate-pulse' : isProcessing ? 'bg-yellow-500 animate-spin' : 'bg-blue-500 hover:bg-blue-600'}`} title="Toggle AI Voice Chat">
-          {isProcessing ? '🤖' : '🎤'}
+        <button onClick={handleMicToggle} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-lg ${voiceStatus === 'error' ? 'bg-red-600 hover:bg-red-700 ring-2 ring-red-300/50' : isListening ? 'bg-rose-500 hover:bg-rose-600 animate-pulse' : isProcessing ? 'bg-amber-500' : isStreaming ? 'bg-cyan-500 animate-pulse' : isSpeaking ? 'bg-emerald-500' : 'bg-blue-500 hover:bg-blue-600'}`} title="Toggle AI Voice Chat">
+          {voiceStatus === 'error' ? '⚠️' : isProcessing || isStreaming ? '🤖' : isSpeaking ? '🔊' : '🎤'}
         </button>
 
         <button onClick={handleMoodToggle} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isMoodAnalyzing ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-600 hover:bg-gray-700'}`} title="Toggle Basic Mood Detection">
@@ -219,16 +219,17 @@ const Index = () => {
         </button>
       </div>
 
-      {/* Voice Response */}
-      {transcribedText && <div className="bg-white/10 rounded p-2 text-white text-sm max-w-48">
-          <p className="text-xs text-gray-300 mb-1">You said:</p>
-          <p className="mb-2">{transcribedText}</p>
-          {isProcessing && <p className="text-xs text-yellow-300">🤖 AI is thinking...</p>}
-          {lastResponse && !isProcessing && <>
-              <p className="text-xs text-blue-300 mb-1">AI replied:</p>
-              <p className="text-blue-200">{lastResponse}</p>
-            </>}
-        </div>}
+      {/* Voice chat HUD (Apple-grade glass panel) */}
+      <VoiceChatPanel
+        status={voiceStatus}
+        isConfigured={isVoiceConfigured}
+        transcribedText={transcribedText}
+        partialResponse={partialResponse}
+        lastResponse={lastResponse}
+        lastError={voiceError}
+        onCancel={cancelVoice}
+        onRetry={retryVoice}
+      />
 
       {/* Emotion Feedback */}
       {isImprovedEmotionActive && improvedEmotion !== 'neutral' && <div className="bg-purple-500/20 rounded p-2 text-white text-sm max-w-48">
