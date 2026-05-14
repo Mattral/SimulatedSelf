@@ -1,6 +1,5 @@
-
 import { useState, useRef, useCallback } from 'react';
-import { geminiService } from '../services/geminiService';
+import { geminiService, GroqServiceError } from '../services/geminiService';
 
 declare global {
   interface Window {
@@ -9,121 +8,177 @@ declare global {
   }
 }
 
+export type VoiceChatStatus =
+  | 'idle'
+  | 'listening'
+  | 'processing'
+  | 'streaming'
+  | 'speaking'
+  | 'error';
+
+export interface VoiceChatError {
+  code: GroqServiceError['code'];
+  message: string;
+  retryable: boolean;
+}
+
+/**
+ * useVoiceInteraction
+ * -------------------
+ *  - Web Speech API for capture + synthesis.
+ *  - Streams Groq tokens into `partialResponse` so the UI updates in real time.
+ *  - Surfaces explicit `status` plus a `lastError` with retry support.
+ *  - Speaks the full reply once the stream terminates (avoids choppy TTS).
+ */
 export const useVoiceInteraction = () => {
-  const [isListening, setIsListening] = useState(false);
+  const [status, setStatus] = useState<VoiceChatStatus>('idle');
   const [transcribedText, setTranscribedText] = useState('');
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [partialResponse, setPartialResponse] = useState('');
   const [lastResponse, setLastResponse] = useState('');
+  const [lastError, setLastError] = useState<VoiceChatError | null>(null);
+
   const recognitionRef = useRef<any>(null);
-  const synthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const lastPromptRef = useRef<string>('');
+
+  const speak = useCallback((text: string) => {
+    if (!('speechSynthesis' in window) || !text) return;
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.volume = 0.9;
+    utterance.onstart = () => setStatus('speaking');
+    utterance.onend = () => setStatus('idle');
+    utterance.onerror = () => setStatus('idle');
+    speechSynthesis.speak(utterance);
+  }, []);
+
+  const runConversation = useCallback(
+    async (userInput: string) => {
+      lastPromptRef.current = userInput;
+      setLastError(null);
+      setPartialResponse('');
+      setLastResponse('');
+      setStatus('processing');
+
+      const controller = new AbortController();
+      abortRef.current?.abort();
+      abortRef.current = controller;
+
+      let acc = '';
+      try {
+        for await (const chunk of geminiService.generateResponseStream(userInput, {
+          signal: controller.signal,
+          timeoutMs: 15_000,
+          maxRetries: 2,
+        })) {
+          if (status !== 'streaming') setStatus('streaming');
+          acc += chunk;
+          setPartialResponse(acc);
+        }
+        const final = acc.trim() || "I'm sorry, I couldn't generate a response.";
+        setLastResponse(final);
+        setPartialResponse('');
+        speak(final);
+      } catch (err) {
+        const e =
+          err instanceof GroqServiceError
+            ? { code: err.code, message: err.message, retryable: err.retryable }
+            : { code: 'UNKNOWN' as const, message: 'Unexpected error.', retryable: false };
+        console.error('[useVoiceInteraction]', e);
+        setLastError(e);
+        setStatus('error');
+      }
+    },
+    [speak, status],
+  );
 
   const startListening = useCallback(() => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported');
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setLastError({
+        code: 'NOT_CONFIGURED',
+        message: 'Speech recognition is not supported in this browser.',
+        retryable: false,
+      });
+      setStatus('error');
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
+    const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
-      setIsListening(true);
-      console.log('Speech recognition started');
+      setStatus('listening');
+      setLastError(null);
     };
-
     recognition.onresult = (event: any) => {
       let finalTranscript = '';
-      
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        }
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
       }
-      
       if (finalTranscript) {
         setTranscribedText(finalTranscript);
-        handleLLMConversation(finalTranscript);
+        recognition.stop();
+        runConversation(finalTranscript);
       }
     };
-
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
-      setIsListening(false);
+      setLastError({
+        code: 'NETWORK',
+        message: `Microphone error: ${event.error}`,
+        retryable: true,
+      });
+      setStatus('error');
     };
-
     recognition.onend = () => {
-      setIsListening(false);
+      setStatus((s) => (s === 'listening' ? 'idle' : s));
     };
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, []);
-
-  const handleLLMConversation = useCallback(async (userInput: string) => {
-    setIsProcessing(true);
-    
-    try {
-      const aiResponse = await geminiService.generateResponse(userInput);
-      setLastResponse(aiResponse);
-      speak(aiResponse);
-    } catch (error) {
-      console.error('LLM conversation error:', error);
-      const fallbackResponse = "I'm having trouble processing your request right now.";
-      setLastResponse(fallbackResponse);
-      speak(fallbackResponse);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+  }, [runConversation]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    setIsListening(false);
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setStatus((s) => (s === 'listening' ? 'idle' : s));
   }, []);
 
-  const speak = useCallback((text: string) => {
-    if ('speechSynthesis' in window) {
-      // Cancel any ongoing speech
-      speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      utterance.volume = 0.8;
-      
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-      };
-      
-      utterance.onend = () => {
-        setIsSpeaking(false);
-      };
-      
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-      };
-      
-      synthesisRef.current = utterance;
-      speechSynthesis.speak(utterance);
-    }
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    speechSynthesis?.cancel?.();
+    setStatus('idle');
+    setPartialResponse('');
   }, []);
+
+  const retry = useCallback(() => {
+    if (!lastPromptRef.current) return;
+    runConversation(lastPromptRef.current);
+  }, [runConversation]);
 
   return {
-    isListening,
+    // status
+    status,
+    isListening: status === 'listening',
+    isProcessing: status === 'processing',
+    isStreaming: status === 'streaming',
+    isSpeaking: status === 'speaking',
+    isConfigured: geminiService.isConfigured,
+    // text
     transcribedText,
-    isSpeaking,
-    isProcessing,
+    partialResponse,
     lastResponse,
+    lastError,
+    // actions
     startListening,
     stopListening,
-    speak
+    cancel,
+    retry,
+    speak,
   };
 };
