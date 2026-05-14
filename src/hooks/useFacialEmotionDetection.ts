@@ -21,7 +21,7 @@ export const useFacialEmotionDetection = () => {
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const emotionHistoryRef = useRef<string[]>([]);
   const isModelsLoadedRef = useRef(false);
 

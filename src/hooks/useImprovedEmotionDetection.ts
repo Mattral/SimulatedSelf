@@ -16,7 +16,7 @@ export const useImprovedEmotionDetection = () => {
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isModelsLoadedRef = useRef(false);
   const emotionHistoryRef = useRef<ImprovedEmotionData[]>([]);
 
