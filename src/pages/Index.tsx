@@ -274,7 +274,7 @@ const Index = () => {
         <div className="absolute top-4 left-4">
           <h1 className="font-bold text-white mb-2 text-xl">Simulated Self (Human-Robot Interaction)</h1>
           <p className="text-sm text-gray-300">This humanoid robot project was designed and developed by Min Htet Myet</p>
-          <p className="text-xs text-cyan-300 mt-1">🤖 Now with AI voice chat powered by Google Gemini</p>
+          <p className="text-xs text-cyan-300 mt-1">🤖 Now with AI voice chat powered by Groq Llama 3.1</p>
         </div>
 
         {/* Professional Instructions */}
