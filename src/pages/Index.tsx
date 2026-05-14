@@ -4,6 +4,7 @@ import { WebcamFeed } from '../components/WebcamFeed';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { PermissionHandler } from '../components/PermissionHandler';
 import MoodDisplay from '../components/MoodDisplay';
+import VoiceChatPanel from '../components/VoiceChatPanel';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { useFaceExpression } from '../hooks/useFaceExpression';
@@ -28,13 +29,20 @@ const Index = () => {
     resetPose
   } = usePoseDetection();
   const {
+    status: voiceStatus,
     isListening,
-    transcribedText,
-    isSpeaking,
     isProcessing,
+    isStreaming,
+    isSpeaking,
+    isConfigured: isVoiceConfigured,
+    transcribedText,
+    partialResponse,
     lastResponse,
+    lastError: voiceError,
     startListening,
-    stopListening
+    stopListening,
+    cancel: cancelVoice,
+    retry: retryVoice
   } = useVoiceInteraction();
   const {
     currentExpression,
