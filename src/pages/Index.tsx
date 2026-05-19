@@ -5,6 +5,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { PermissionHandler } from '../components/PermissionHandler';
 import MoodDisplay from '../components/MoodDisplay';
 import VoiceChatPanel from '../components/VoiceChatPanel';
+import MicLevelMeter from '../components/MicLevelMeter';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { useFaceExpression } from '../hooks/useFaceExpression';
@@ -230,6 +231,9 @@ const Index = () => {
         onCancel={cancelVoice}
         onRetry={retryVoice}
       />
+
+      {/* Real-time microphone level meter + tips (only while listening) */}
+      <MicLevelMeter active={isListening} className="w-72 max-w-[80vw]" />
 
       {/* Emotion Feedback */}
       {isImprovedEmotionActive && improvedEmotion !== 'neutral' && <div className="bg-purple-500/20 rounded p-2 text-white text-sm max-w-48">
