@@ -75,6 +75,7 @@ The `docs/` folder contains engineering-grade documentation:
 |----------------------------------------------|---------------------------------------------------|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System diagram, module responsibilities, data flow |
 | [`docs/VOICE_PIPELINE.md`](docs/VOICE_PIPELINE.md) | Streaming, retry, timeout, and TTS contract       |
+| [`docs/RESEARCH.md`](docs/RESEARCH.md)         | Research-style report: methodology, limitations, comparisons across Human Modeling/Augmentation and Sensory/Motor Extension |
 | [`docs/SECURITY.md`](docs/SECURITY.md)         | Key handling, browser exposure model, hardening   |
 | [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | Coding conventions, commit hygiene, review bar    |
 
