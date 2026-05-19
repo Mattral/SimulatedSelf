@@ -90,7 +90,6 @@ The `docs/` folder contains engineering-grade documentation:
 
 ## ✦ License & credit
 
-Built and maintained by **Min Htet Myet** — ML Engineer, MLOps practitioner,
-Local Chapter Lead at Omdena Myanmar, NASA Virtual Guest alum.
+Built and maintained by **Min Htet Myet** — ML Engineer, MLOps practitioner.
 
 Released under the MIT License. See [`LICENSE`](LICENSE) for details.
