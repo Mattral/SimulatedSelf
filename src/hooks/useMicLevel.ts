@@ -46,8 +46,7 @@ export function useMicLevel(enabled: boolean): MicLevelState {
   useEffect(() => {
     // Permission state (best-effort; not all browsers expose microphone).
     if ('permissions' in navigator) {
-      // @ts-expect-error - microphone is not in all lib.dom variants
-      navigator.permissions.query?.({ name: 'microphone' })
+      (navigator.permissions.query?.({ name: 'microphone' as PermissionName }) as Promise<any> | undefined)
         .then((res: any) => {
           setState((s) => ({ ...s, permissionState: res.state }));
           res.onchange = () =>
