@@ -315,11 +315,13 @@ export const useMediaPipePoseDetection = () => {
     isDetectionActive,
     isModelLoading,
     landmarks,
+    /** Mutable, always-fresh landmarks — read from rAF loops. */
+    landmarksRef,
     error,
     videoElement: videoRef.current,
     startDetection,
     stopDetection,
-    resetPose
+    resetPose,
   };
 };
 
