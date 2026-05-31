@@ -16,18 +16,48 @@ export interface PoseResults {
   rightHand?: Landmark[];
 }
 
+/**
+ * Performance note:
+ *   The previous implementation called `setLandmarks(...)` on EVERY
+ *   MediaPipe callback (~30Hz × 2 streams). That forced a full React
+ *   re-render of <Index/> ~60 times per second and was the primary
+ *   driver of GC thrashing.
+ *
+ *   The hook now writes the latest pose into a mutable `landmarksRef`
+ *   on the hot path and only flushes a React state update at most
+ *   every `RENDER_THROTTLE_MS`. Consumers that drive Three.js should
+ *   read `landmarksRef.current` from inside their render loop
+ *   (Scene3D already uses an imperative handle) and ignore the React
+ *   state copy entirely.
+ */
+const RENDER_THROTTLE_MS = 100;
+
 export const useMediaPipePoseDetection = () => {
   const [isDetectionActive, setIsDetectionActive] = useState(false);
   const [landmarks, setLandmarks] = useState<PoseResults | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
+  /** Hot-path mutable copy — read this from rAF loops. */
+  const landmarksRef = useRef<PoseResults | null>(null);
+  const lastFlushRef = useRef(0);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const poseRef = useRef<any>(null);
   const handsRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
   const retryCountRef = useRef(0);
   const maxRetries = 3;
+
+  const writeLandmarks = (patch: Partial<PoseResults>) => {
+    const next: PoseResults = { ...(landmarksRef.current || {}), ...patch };
+    landmarksRef.current = next;
+    const now = performance.now();
+    if (now - lastFlushRef.current >= RENDER_THROTTLE_MS) {
+      lastFlushRef.current = now;
+      setLandmarks(next);
+    }
+  };
 
   // Load MediaPipe scripts dynamically with retry logic
   const loadMediaPipeScripts = useCallback(async (): Promise<boolean> => {
@@ -125,20 +155,13 @@ export const useMediaPipePoseDetection = () => {
         minTrackingConfidence: 0.5
       });
 
-      // Set up pose results callback
+      // Pose results — written to ref, throttled into React state.
       pose.onResults((results: any) => {
-        console.log('Pose landmarks detected:', results.poseLandmarks?.length || 0);
-        
-        setLandmarks(prevLandmarks => ({
-          ...prevLandmarks,
-          pose: results.poseLandmarks || undefined
-        }));
+        writeLandmarks({ pose: results.poseLandmarks || undefined });
       });
 
-      // Set up hands results callback
+      // Hands results — written to ref, throttled into React state.
       hands.onResults((results: any) => {
-        console.log('Hand landmarks detected:', results.multiHandLandmarks?.length || 0);
-        
         const handsData: Landmark[][] = [];
         let leftHand: Landmark[] | undefined;
         let rightHand: Landmark[] | undefined;
@@ -146,29 +169,18 @@ export const useMediaPipePoseDetection = () => {
         if (results.multiHandLandmarks && results.multiHandedness) {
           results.multiHandLandmarks.forEach((handLandmarks: any, index: number) => {
             const handedness = results.multiHandedness![index];
-            const landmarks = handLandmarks.map((lm: any) => ({
+            const lms = handLandmarks.map((lm: any) => ({
               x: lm.x,
               y: lm.y,
-              z: lm.z || 0
+              z: lm.z || 0,
             }));
-
-            handsData.push(landmarks);
-
-            // Assign to left/right based on handedness
-            if (handedness.label === 'Left') {
-              leftHand = landmarks;
-            } else {
-              rightHand = landmarks;
-            }
+            handsData.push(lms);
+            if (handedness.label === 'Left') leftHand = lms;
+            else rightHand = lms;
           });
         }
 
-        setLandmarks(prevLandmarks => ({
-          ...prevLandmarks,
-          hands: handsData,
-          leftHand,
-          rightHand
-        }));
+        writeLandmarks({ hands: handsData, leftHand, rightHand });
       });
 
       poseRef.current = pose;
@@ -270,10 +282,9 @@ export const useMediaPipePoseDetection = () => {
 
   // Stop detection
   const stopDetection = useCallback(() => {
-    console.log('Stopping detection...');
-    
     setIsDetectionActive(false);
     setLandmarks(null);
+    landmarksRef.current = null;
 
     if (cameraRef.current) {
       cameraRef.current.stop();
@@ -282,17 +293,15 @@ export const useMediaPipePoseDetection = () => {
 
     if (videoRef.current && videoRef.current.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+      tracks.forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
-
-    console.log('Detection stopped');
   }, []);
 
   // Reset pose
   const resetPose = useCallback(() => {
-    console.log('Resetting pose...');
     setLandmarks(null);
+    landmarksRef.current = null;
   }, []);
 
   // Cleanup on unmount
