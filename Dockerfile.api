@@ -1,0 +1,36 @@
+# Dockerfile.api -- Backend API Gateway
+# Handles WebSockets, Redis session cache, and LLM orchestration.
+# Non-root, distroless-style hardening.
+
+# --- Stage 1: install + build ----------------------------------------------
+FROM node:20-alpine AS build
+WORKDIR /app
+
+RUN corepack enable
+COPY apps/api/package.json apps/api/package-lock.json* ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+COPY apps/api/ .
+RUN npm run build
+
+# --- Stage 2: minimal runtime ----------------------------------------------
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# Create dedicated non-root user.
+RUN addgroup -S app && adduser -S app -G app
+
+ENV NODE_ENV=production \
+    PORT=8081
+
+COPY --from=build --chown=app:app /app/node_modules ./node_modules
+COPY --from=build --chown=app:app /app/dist ./dist
+COPY --from=build --chown=app:app /app/package.json ./package.json
+
+USER app
+EXPOSE 8081
+
+HEALTHCHECK --interval=15s --timeout=3s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:8081/healthz || exit 1
+
+CMD ["node", "dist/server.js"]

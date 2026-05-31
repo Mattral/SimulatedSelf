@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: simulated-self
+spec:
+  type: ClusterIP
+  selector: { app: web }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: simulated-self
+spec:
+  type: ClusterIP
+  selector: { app: api }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: simulated-self
+spec:
+  type: ClusterIP
+  clusterIP: None # headless for StatefulSet
+  selector: { app: redis }
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

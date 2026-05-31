@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: simulated-self
+  namespace: simulated-self
+  annotations:
+    # NGINX Ingress controller. Adjust for ALB/GCE if needed.
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+    # --- WebSocket support ----------------------------------------
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+
+    # --- Session stickiness for /api/ws (sticky to same API pod) --
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "SIMSELF_WS"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "3600"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
+    nginx.ingress.kubernetes.io/session-cookie-samesite: "Lax"
+spec:
+  tls:
+    - hosts: [simulated-self.example.com]
+      secretName: simulated-self-tls
+  rules:
+    - host: simulated-self.example.com
+      http:
+        paths:
+          - path: /api/ws
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port: { number: 80 }
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port: { number: 80 }
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port: { number: 80 }
