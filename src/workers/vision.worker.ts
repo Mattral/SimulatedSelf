@@ -4,26 +4,18 @@
  * Dedicated Web Worker that runs the @vladmandic/face-api facial
  * emotion model off the main thread.
  *
- * Why a worker?
- *   - face-api inference is ~30–120ms per frame on mid-tier hardware
- *     and triggers heavy GC on the main thread when run inside React
- *     `setInterval` loops. Offloading to a worker keeps the Three.js
- *     render loop at 60fps and removes jank from the skeleton driver.
+ * Runtime self-test:
+ *   On `init`, the worker first does a HEAD request to each required
+ *   model manifest. If any URL 404s (the most common deployment bug
+ *   — models not copied into `public/models/`), we fail fast with an
+ *   explicit `error` message *before* face-api tries to load them,
+ *   so the UI can show actionable guidance instead of a vague stack.
  *
  * Transport:
- *   - The main thread captures the current webcam frame into an
- *     OffscreenCanvas or ImageBitmap and posts it as a Transferable.
- *     No memory is copied (zero-copy handoff).
- *   - We post back a compact { emotion, confidence, expressions }
- *     payload that the hook merges into a `useRef` (NOT React state)
- *     so the render loop reads it without re-rendering the tree.
- *
- * MediaPipe Pose note:
- *   The MediaPipe JS pose/hands solutions internally depend on a
- *   DOM-bound canvas + WASM that historically does not initialize in
- *   a Worker context. We therefore keep the MediaPipe pose pipeline
- *   on the main thread but flatten its output through a mutable ref
- *   (see useMediaPipePoseDetection) to bypass React re-renders.
+ *   Main thread sends an ImageBitmap as a Transferable (zero copy).
+ *   Worker replies with a flat { emotion, confidence, expressions }
+ *   payload that the hook merges into a `useRef` so the Three.js
+ *   render loop reads it without React re-renders.
  * ---------------------------------------------------------------
  */
 
@@ -37,7 +29,7 @@ type InboundMessage =
 
 type OutboundMessage =
   | { type: 'ready' }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; code?: string }
   | {
       type: 'emotion';
       ts: number;
@@ -51,18 +43,54 @@ let busy = false;
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
+const REQUIRED_MANIFESTS = [
+  'tiny_face_detector_model-weights_manifest.json',
+  'face_expression_model-weights_manifest.json',
+];
+
+function post(msg: OutboundMessage) {
+  ctx.postMessage(msg);
+}
+
+async function preflight(modelUrl: string): Promise<void> {
+  const base = modelUrl.replace(/\/$/, '');
+  for (const file of REQUIRED_MANIFESTS) {
+    const url = `${base}/${file}`;
+    let res: Response;
+    try {
+      res = await fetch(url, { method: 'GET', cache: 'no-store' });
+    } catch (e) {
+      throw new Error(
+        `[vision.worker] network error fetching ${url}: ${(e as Error).message}. ` +
+          `Check that the dev server / CDN is reachable.`,
+      );
+    }
+    if (!res.ok) {
+      throw new Error(
+        `[vision.worker] model not found at ${url} (HTTP ${res.status}). ` +
+          `Place face-api weights in public/models/ — see public/models/models-info.txt.`,
+      );
+    }
+  }
+}
+
 async function init(modelUrl: string) {
   if (initialized) return;
+  // eslint-disable-next-line no-console
+  console.info('[vision.worker] init — verifying model URLs at', modelUrl);
   try {
+    await preflight(modelUrl);
     await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
     await faceapi.nets.faceExpressionNet.loadFromUri(modelUrl);
     initialized = true;
-    ctx.postMessage({ type: 'ready' } as OutboundMessage);
+    // eslint-disable-next-line no-console
+    console.info('[vision.worker] ready — face-api models loaded');
+    post({ type: 'ready' });
   } catch (err) {
-    ctx.postMessage({
-      type: 'error',
-      message: `model load failed: ${(err as Error).message}`,
-    } as OutboundMessage);
+    const message = (err as Error).message || String(err);
+    // eslint-disable-next-line no-console
+    console.error('[vision.worker] init failed:', message);
+    post({ type: 'error', message, code: 'MODEL_LOAD_FAILED' });
   }
 }
 
@@ -73,7 +101,6 @@ async function processFrame(bitmap: ImageBitmap, ts: number) {
   }
   busy = true;
   try {
-    // OffscreenCanvas is required for face-api to read the bitmap inside a worker.
     const off = new OffscreenCanvas(bitmap.width, bitmap.height);
     const g = off.getContext('2d');
     if (!g) throw new Error('OffscreenCanvas 2D unavailable');
@@ -96,19 +123,10 @@ async function processFrame(bitmap: ImageBitmap, ts: number) {
           top = k;
         }
       }
-      ctx.postMessage({
-        type: 'emotion',
-        ts,
-        emotion: top,
-        confidence: best,
-        expressions: e,
-      } as OutboundMessage);
+      post({ type: 'emotion', ts, emotion: top, confidence: best, expressions: e });
     }
   } catch (err) {
-    ctx.postMessage({
-      type: 'error',
-      message: (err as Error).message,
-    } as OutboundMessage);
+    post({ type: 'error', message: (err as Error).message, code: 'INFERENCE_FAILED' });
   } finally {
     bitmap.close();
     busy = false;
