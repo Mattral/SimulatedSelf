@@ -1,0 +1,67 @@
+# ---------------------------------------------------------------
+# Local one-command dev stack.
+#
+# Usage:
+#   docker compose up --build           # frontend + api + redis
+#   docker compose run --rm smoke       # vision.worker smoke test
+#   docker compose run --rm api-test    # backend preflight tests
+# ---------------------------------------------------------------
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+    volumes: [redis-data:/data]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      REDIS_URL: redis://redis:6379
+      MODEL_BASE_URL: http://web/models
+      PORT: "8081"
+    ports: ["8081:8081"]
+    depends_on:
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports: ["8080:8080"]
+
+  # On-demand: vision.worker smoke test (bundle + model URL resolution)
+  smoke:
+    image: oven/bun:1.1-alpine
+    working_dir: /app
+    volumes: [".:/app"]
+    command: ["sh", "-c", "bun install --frozen-lockfile && bun run smoke:vision-worker"]
+    profiles: ["test"]
+
+  # On-demand: backend preflight unit tests
+  api-test:
+    image: oven/bun:1.1-alpine
+    working_dir: /app/apps/api
+    volumes: [".:/app"]
+    command: ["sh", "-c", "cd /app/apps/api && bun install && bun test"]
+    profiles: ["test"]
+
+  # On-demand: Playwright E2E suite against the running web service
+  e2e:
+    image: mcr.microsoft.com/playwright:v1.48.0-jammy
+    working_dir: /app
+    volumes: [".:/app"]
+    environment:
+      E2E_BASE_URL: http://web:8080
+    command: ["sh", "-c", "npx -y playwright@1.48.0 test -c playwright.config.ts"]
+    depends_on: [web, api]
+    profiles: ["test"]
+
+volumes:
+  redis-data:

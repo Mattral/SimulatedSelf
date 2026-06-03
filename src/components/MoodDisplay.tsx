@@ -6,8 +6,9 @@
  * emotion plus a bar-chart breakdown of the top expressions.
  * ---------------------------------------------------------------
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+
 
 
 export interface MoodDisplayProps {
@@ -52,10 +53,13 @@ const MoodDisplay: React.FC<MoodDisplayProps> = ({
 
   const [diag, setDiag] = useState<null | { ok: boolean; message: string; models?: Array<{ file: string; ok: boolean; status?: number }> }>(null);
   const [diagLoading, setDiagLoading] = useState(false);
+  const [lastChecked, setLastChecked] = useState<number | null>(null);
+  const inflight = useRef(false);
 
-  const runDiagnostics = async () => {
+  const runDiagnostics = useCallback(async () => {
+    if (inflight.current) return;
+    inflight.current = true;
     setDiagLoading(true);
-    setDiag(null);
     try {
       const { data, error } = await supabase.functions.invoke('vision-diagnostics', {
         body: { origin: window.location.origin },
@@ -65,9 +69,20 @@ const MoodDisplay: React.FC<MoodDisplayProps> = ({
     } catch (e) {
       setDiag({ ok: false, message: (e as Error).message });
     } finally {
+      setLastChecked(Date.now());
       setDiagLoading(false);
+      inflight.current = false;
     }
-  };
+  }, []);
+
+  // Auto-refresh diagnostics every 30s while the panel is active.
+  useEffect(() => {
+    if (!isActive) return;
+    void runDiagnostics();
+    const id = window.setInterval(runDiagnostics, 30_000);
+    return () => window.clearInterval(id);
+  }, [isActive, runDiagnostics]);
+
 
 
   if (!isActive) {
@@ -142,8 +157,14 @@ const MoodDisplay: React.FC<MoodDisplayProps> = ({
           disabled={diagLoading}
           className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 disabled:opacity-50 transition"
         >
-          {diagLoading ? 'Checking models…' : 'Run vision diagnostics'}
+          {diagLoading ? 'Checking models…' : 'Re-run vision diagnostics'}
         </button>
+        {lastChecked && (
+          <span className="ml-2 text-[10px] text-gray-500">
+            last checked {Math.round((Date.now() - lastChecked) / 1000)}s ago
+          </span>
+        )}
+
         {diag && (
           <div className="mt-2 text-[11px] space-y-1">
             <p className={diag.ok ? 'text-green-400' : 'text-red-400'}>{diag.message}</p>
