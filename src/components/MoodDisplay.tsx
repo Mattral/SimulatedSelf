@@ -6,7 +6,9 @@
  * emotion plus a bar-chart breakdown of the top expressions.
  * ---------------------------------------------------------------
  */
-import React from 'react';
+import React, { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
 
 export interface MoodDisplayProps {
   emotion: string | null;
