@@ -12,8 +12,18 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   const url = new URL(req.url);
-  const origin = url.searchParams.get('origin') ?? req.headers.get('origin') ?? '';
-  const modelBaseUrl = (url.searchParams.get('modelBaseUrl') ?? `${origin}/models`).replace(/\/$/, '');
+  let bodyOrigin: string | undefined;
+  let bodyModelBaseUrl: string | undefined;
+  if (req.method === 'POST') {
+    try {
+      const json = await req.json();
+      bodyOrigin = json?.origin;
+      bodyModelBaseUrl = json?.modelBaseUrl;
+    } catch { /* ignore */ }
+  }
+  const origin = bodyOrigin ?? url.searchParams.get('origin') ?? req.headers.get('origin') ?? '';
+  const modelBaseUrl = (bodyModelBaseUrl ?? url.searchParams.get('modelBaseUrl') ?? `${origin}/models`).replace(/\/$/, '');
+
 
   const checks = await Promise.all(manifests.map(async (manifest) => {
     const target = `${modelBaseUrl}/${manifest}`;
@@ -25,7 +35,7 @@ Deno.serve(async (req) => {
     }
   }));
 
-  const ok = Boolean(origin || url.searchParams.get('modelBaseUrl')) && checks.every((check) => check.ok);
+  const ok = Boolean(modelBaseUrl) && checks.every((check) => check.ok);
   return new Response(JSON.stringify({
     ok,
     worker: 'src/workers/vision.worker.ts',

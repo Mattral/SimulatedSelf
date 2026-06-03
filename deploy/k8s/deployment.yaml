@@ -87,13 +87,23 @@ spec:
               valueFrom:
                 secretKeyRef: { name: api-secrets, key: GROQ_API_KEY }
           readinessProbe:
-            httpGet: { path: /healthz, port: http }
-            initialDelaySeconds: 3
+            # /readyz performs deep checks: pings Redis and verifies the
+            # WebSocket upgrade handler is accepting sessions. Failing the
+            # readiness probe removes the pod from the Service endpoints so
+            # rollouts halt when Redis or the WS subsystem is unhealthy.
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
             periodSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             httpGet: { path: /healthz, port: http }
             initialDelaySeconds: 10
             periodSeconds: 15
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 30
+            periodSeconds: 2
+
           resources:
             requests: { cpu: "150m", memory: "256Mi" }
             limits:   { cpu: "1",    memory: "1Gi" }
