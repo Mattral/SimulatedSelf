@@ -157,8 +157,14 @@ const MoodDisplay: React.FC<MoodDisplayProps> = ({
           disabled={diagLoading}
           className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 disabled:opacity-50 transition"
         >
-          {diagLoading ? 'Checking models…' : 'Run vision diagnostics'}
+          {diagLoading ? 'Checking models…' : 'Re-run vision diagnostics'}
         </button>
+        {lastChecked && (
+          <span className="ml-2 text-[10px] text-gray-500">
+            last checked {Math.round((Date.now() - lastChecked) / 1000)}s ago
+          </span>
+        )}
+
         {diag && (
           <div className="mt-2 text-[11px] space-y-1">
             <p className={diag.ok ? 'text-green-400' : 'text-red-400'}>{diag.message}</p>
