@@ -50,6 +50,26 @@ const MoodDisplay: React.FC<MoodDisplayProps> = ({
   const pulse = variant === 'ai' ? 'bg-purple-400' : 'bg-green-400';
   const spinner = variant === 'ai' ? 'border-purple-400' : 'border-blue-400';
 
+  const [diag, setDiag] = useState<null | { ok: boolean; message: string; models?: Array<{ file: string; ok: boolean; status?: number }> }>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+
+  const runDiagnostics = async () => {
+    setDiagLoading(true);
+    setDiag(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('vision-diagnostics', {
+        body: { origin: window.location.origin },
+      });
+      if (error) throw error;
+      setDiag(data as typeof diag);
+    } catch (e) {
+      setDiag({ ok: false, message: (e as Error).message });
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+
   if (!isActive) {
     return (
       <div className="bg-black/80 backdrop-blur-sm rounded-lg p-4 text-white">
@@ -114,8 +134,33 @@ const MoodDisplay: React.FC<MoodDisplayProps> = ({
           <span className="text-xs text-gray-400">Analyzing...</span>
         </div>
       )}
+
+      <div className="mt-3 pt-3 border-t border-white/10">
+        <button
+          type="button"
+          onClick={runDiagnostics}
+          disabled={diagLoading}
+          className="text-[11px] px-2 py-1 rounded bg-white/10 hover:bg-white/20 disabled:opacity-50 transition"
+        >
+          {diagLoading ? 'Checking models…' : 'Run vision diagnostics'}
+        </button>
+        {diag && (
+          <div className="mt-2 text-[11px] space-y-1">
+            <p className={diag.ok ? 'text-green-400' : 'text-red-400'}>{diag.message}</p>
+            {diag.models?.map((m) => (
+              <div key={m.file} className="flex justify-between text-gray-400">
+                <span className="truncate">{m.file}</span>
+                <span className={m.ok ? 'text-green-400' : 'text-red-400'}>
+                  {m.ok ? 'OK' : `FAIL ${m.status ?? ''}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
 
 export default MoodDisplay;
