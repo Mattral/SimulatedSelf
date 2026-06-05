@@ -15,6 +15,7 @@
  * kubelet logs contain root-cause context.
  */
 import Redis from 'ioredis';
+import { recordRedisPing, recordModelPreflight } from './metrics';
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const MODEL_BASE_URL = process.env.MODEL_BASE_URL ?? '';
@@ -67,8 +68,11 @@ async function pingRedis(): Promise<ReadinessReport['checks']['redis']> {
     const r = getRedis();
     if (r.status === 'end' || r.status === 'wait') await r.connect().catch(() => {});
     const pong = await withTimeout(r.ping(), 250, 'redis.ping');
-    return { ok: pong === 'PONG', latencyMs: Math.round(performance.now() - t0) };
+    const latencyMs = Math.round(performance.now() - t0);
+    recordRedisPing(latencyMs);
+    return { ok: pong === 'PONG', latencyMs };
   } catch (e) {
+    recordRedisPing(Math.round(performance.now() - t0));
     return { ok: false, error: (e as Error).message };
   }
 }
@@ -77,6 +81,7 @@ async function checkModels(): Promise<ReadinessReport['checks']['models']> {
   if (!MODEL_BASE_URL) return undefined;
   const base = MODEL_BASE_URL.replace(/\/$/, '');
   const failed: string[] = [];
+  const t0 = performance.now();
   await Promise.all(MODEL_MANIFESTS.map(async (m) => {
     try {
       const res = await withTimeout(fetch(`${base}/${m}`, { method: 'HEAD' }), 500, `model.${m}`);
@@ -85,6 +90,7 @@ async function checkModels(): Promise<ReadinessReport['checks']['models']> {
       failed.push(`${m} (${(e as Error).message})`);
     }
   }));
+  recordModelPreflight(performance.now() - t0, failed.length === 0);
   return { ok: failed.length === 0, failed: failed.length ? failed : undefined };
 }
 

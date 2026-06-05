@@ -3,8 +3,9 @@
 #
 # Usage:
 #   docker compose up --build           # frontend + api + redis
-#   docker compose run --rm smoke       # vision.worker smoke test
-#   docker compose run --rm api-test    # backend preflight tests
+#   docker compose --profile test run --rm smoke     # vision worker smoke
+#   docker compose --profile test run --rm api-test  # backend unit tests
+#   docker compose --profile test run --rm e2e       # Playwright suite
 # ---------------------------------------------------------------
 services:
   redis:
@@ -16,6 +17,7 @@ services:
       interval: 5s
       timeout: 2s
       retries: 5
+      start_period: 5s
     volumes: [redis-data:/data]
 
   api:
@@ -24,17 +26,49 @@ services:
       dockerfile: Dockerfile.api
     environment:
       REDIS_URL: redis://redis:6379
-      MODEL_BASE_URL: http://web/models
+      MODEL_BASE_URL: http://web:8080/models
       PORT: "8081"
     ports: ["8081:8081"]
     depends_on:
       redis: { condition: service_healthy }
+      web:   { condition: service_started }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   web:
     build:
       context: .
       dockerfile: Dockerfile
     ports: ["8080:8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Sidecar: tails /readyz + /diagnostics/vision so a `docker compose up`
+  # surfaces probe state continuously without needing kubectl.
+  diagnostics-tail:
+    image: alpine:3.20
+    depends_on:
+      api: { condition: service_healthy }
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl jq >/dev/null
+        echo "[diagnostics-tail] polling api every 15s"
+        while true; do
+          ts=$$(date -u +%FT%TZ)
+          echo "[$$ts] /readyz:"            && curl -fsS http://api:8081/readyz            | jq -c . || echo "  (down)"
+          echo "[$$ts] /diagnostics/vision:" && curl -fsS http://api:8081/diagnostics/vision | jq -c '{ok, models: [.models[] | {file, ok, status}]}' || echo "  (down)"
+          sleep 15
+        done
 
   # On-demand: vision.worker smoke test (bundle + model URL resolution)
   smoke:
@@ -44,7 +78,6 @@ services:
     command: ["sh", "-c", "bun install --frozen-lockfile && bun run smoke:vision-worker"]
     profiles: ["test"]
 
-  # On-demand: backend preflight unit tests
   api-test:
     image: oven/bun:1.1-alpine
     working_dir: /app/apps/api
@@ -52,7 +85,6 @@ services:
     command: ["sh", "-c", "cd /app/apps/api && bun install && bun test"]
     profiles: ["test"]
 
-  # On-demand: Playwright E2E suite against the running web service
   e2e:
     image: mcr.microsoft.com/playwright:v1.48.0-jammy
     working_dir: /app
@@ -60,7 +92,9 @@ services:
     environment:
       E2E_BASE_URL: http://web:8080
     command: ["sh", "-c", "npx -y playwright@1.48.0 test -c playwright.config.ts"]
-    depends_on: [web, api]
+    depends_on:
+      web: { condition: service_healthy }
+      api: { condition: service_healthy }
     profiles: ["test"]
 
 volumes:
