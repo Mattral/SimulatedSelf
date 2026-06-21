@@ -91,5 +91,14 @@ export function renderMetrics(): string {
     '# TYPE websocket_sessions_total counter',
     `websocket_sessions_total ${wsTotal}`,
   );
+  out.push(
+    '# HELP http_requests_total Total HTTP requests by route+status.',
+    '# TYPE http_requests_total counter',
+    ...Array.from(httpRequests.entries()).map(([k, v]) => {
+      const [route, status] = k.split('|');
+      return `http_requests_total{app="api",route="${route}",status="${status}"} ${v}`;
+    }),
+  );
+  out.push(renderHistogram('http_request_duration_ms', 'HTTP request duration in ms.', httpDuration));
   return out.join('\n') + '\n';
 }
