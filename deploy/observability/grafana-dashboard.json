@@ -1,0 +1,49 @@
+{
+  "title": "Simulated Self — RED + SLO",
+  "schemaVersion": 39,
+  "tags": ["simself", "slo"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Availability (30d) — SLO 99.9%",
+      "targets": [{
+        "expr": "1 - (sum(increase(http_requests_total{app=\"api\",status=~\"5..\"}[30d])) / sum(increase(http_requests_total{app=\"api\"}[30d])))"
+      }],
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Error-budget burn rate (1h vs 6h)",
+      "targets": [
+        { "expr": "simself:http_errors:ratio_rate5m", "legendFormat": "5m" },
+        { "expr": "simself:http_errors:ratio_rate1h", "legendFormat": "1h" }
+      ],
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Model preflight latency (p50/p95/p99)",
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum by (le) (rate(model_preflight_duration_ms_bucket[5m])))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum by (le) (rate(model_preflight_duration_ms_bucket[5m])))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(model_preflight_duration_ms_bucket[5m])))", "legendFormat": "p99" }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Active WebSocket sessions",
+      "targets": [{ "expr": "websocket_active_connections" }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis ping latency (p95)",
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum by (le) (rate(redis_ping_latency_ms_bucket[5m])))"
+      }],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 }
+    }
+  ]
+}

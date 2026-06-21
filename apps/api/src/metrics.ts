@@ -36,6 +36,10 @@ let visionFailures = 0;
 let wsActive = 0;
 let wsTotal = 0;
 
+// http_requests_total{route,status} — drives SLO availability burn-rate rules.
+const httpRequests = new Map<string, number>();
+const httpDuration = newHist();
+
 export function recordRedisPing(ms: number) { observe(redisPing, ms); }
 export function recordModelPreflight(ms: number, ok: boolean) {
   observe(modelPreflight[ok ? 'ok' : 'fail'], ms);
@@ -43,6 +47,11 @@ export function recordModelPreflight(ms: number, ok: boolean) {
 }
 export function setWsActive(n: number) { wsActive = n; }
 export function incWsTotal() { wsTotal += 1; }
+export function recordHttpRequest(route: string, status: number, durationMs: number) {
+  const key = `${route}|${status}`;
+  httpRequests.set(key, (httpRequests.get(key) ?? 0) + 1);
+  observe(httpDuration, durationMs);
+}
 
 function renderHistogram(name: string, help: string, h: Histogram, labels = ''): string {
   const lp = labels ? `,${labels}` : '';
@@ -82,5 +91,14 @@ export function renderMetrics(): string {
     '# TYPE websocket_sessions_total counter',
     `websocket_sessions_total ${wsTotal}`,
   );
+  out.push(
+    '# HELP http_requests_total Total HTTP requests by route+status.',
+    '# TYPE http_requests_total counter',
+    ...Array.from(httpRequests.entries()).map(([k, v]) => {
+      const [route, status] = k.split('|');
+      return `http_requests_total{app="api",route="${route}",status="${status}"} ${v}`;
+    }),
+  );
+  out.push(renderHistogram('http_request_duration_ms', 'HTTP request duration in ms.', httpDuration));
   return out.join('\n') + '\n';
 }

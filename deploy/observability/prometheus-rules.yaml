@@ -1,0 +1,77 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: simself-slo
+  namespace: observability
+  labels: { role: alert-rules, app: simself }
+spec:
+  groups:
+    # ---------------------------------------------------------------
+    # SLO definitions
+    #   availability: 99.9% of /healthz + /readyz return 2xx
+    #   latency:      p99 of model preflight < 1500ms
+    # Burn-rate alerts follow Google SRE workbook (multi-window).
+    # ---------------------------------------------------------------
+    - name: simself.slo.availability
+      interval: 30s
+      rules:
+        - record: simself:http_requests:rate5m
+          expr: sum by (route, status) (rate(http_requests_total{app="api"}[5m]))
+        - record: simself:http_errors:ratio_rate5m
+          expr: |
+            sum(rate(http_requests_total{app="api",status=~"5.."}[5m]))
+              /
+            sum(rate(http_requests_total{app="api"}[5m]))
+        - record: simself:http_errors:ratio_rate1h
+          expr: |
+            sum(rate(http_requests_total{app="api",status=~"5.."}[1h]))
+              /
+            sum(rate(http_requests_total{app="api"}[1h]))
+        - alert: SimselfAvailabilityFastBurn
+          # 14.4x burn over 5m AND 1h → 2% budget in 1h
+          expr: |
+            simself:http_errors:ratio_rate5m > (14.4 * 0.001)
+              and
+            simself:http_errors:ratio_rate1h > (14.4 * 0.001)
+          for: 2m
+          labels: { severity: critical, slo: availability }
+          annotations:
+            summary: "Fast error-budget burn on simself API"
+            runbook: "docs/RUNBOOK.md#availability-fast-burn"
+        - alert: SimselfAvailabilitySlowBurn
+          # 6x burn over 30m AND 6h → 10% budget in 24h
+          expr: |
+            (sum(rate(http_requests_total{app="api",status=~"5.."}[30m]))
+              / sum(rate(http_requests_total{app="api"}[30m]))) > (6 * 0.001)
+            and
+            (sum(rate(http_requests_total{app="api",status=~"5.."}[6h]))
+              / sum(rate(http_requests_total{app="api"}[6h]))) > (6 * 0.001)
+          for: 15m
+          labels: { severity: warning, slo: availability }
+
+    - name: simself.slo.latency
+      interval: 30s
+      rules:
+        - alert: SimselfModelPreflightP99High
+          expr: |
+            histogram_quantile(0.99,
+              sum by (le) (rate(model_preflight_duration_ms_bucket[5m]))
+            ) > 1500
+          for: 10m
+          labels: { severity: warning, slo: latency }
+          annotations:
+            summary: "Vision model preflight p99 > 1.5s"
+
+    - name: simself.infra
+      interval: 30s
+      rules:
+        - alert: SimselfRedisPingSlow
+          expr: histogram_quantile(0.95, sum by (le) (rate(redis_ping_latency_ms_bucket[5m]))) > 100
+          for: 5m
+          labels: { severity: warning }
+        - alert: SimselfWsSaturation
+          expr: max(websocket_active_connections) > 450
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "WS soft cap approaching — HPA should scale; investigate if not."

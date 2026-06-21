@@ -1,0 +1,28 @@
+# cert-manager ClusterIssuer for Let's Encrypt (HTTP-01 via ingress-nginx).
+# Apply once per cluster after installing cert-manager:
+#   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ops@simulated-self.example.com
+    privateKeySecretRef: { name: letsencrypt-prod-account }
+    solvers:
+      - http01:
+          ingress: { class: nginx }
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: ops@simulated-self.example.com
+    privateKeySecretRef: { name: letsencrypt-staging-account }
+    solvers:
+      - http01:
+          ingress: { class: nginx }

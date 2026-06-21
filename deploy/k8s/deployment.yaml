@@ -23,6 +23,12 @@ spec:
     metadata:
       labels: { app: web }
     spec:
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app: web } }
       securityContext:
         runAsNonRoot: true
         runAsUser: 101 # nginx
@@ -42,6 +48,11 @@ spec:
             httpGet: { path: /healthz, port: http }
             initialDelaySeconds: 10
             periodSeconds: 15
+          lifecycle:
+            preStop:
+              # Wait for ingress to remove pod from endpoints before nginx exits,
+              # avoiding 502s during rolling updates.
+              exec: { command: ["/bin/sh", "-c", "sleep 10 && nginx -s quit"] }
           resources:
             requests: { cpu: "50m", memory: "64Mi" }
             limits:   { cpu: "300m", memory: "256Mi" }
@@ -70,6 +81,15 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8081"
     spec:
+      # WebSocket drain: pod gets SIGTERM, /readyz starts returning 503,
+      # in-flight WS sessions are notified to reconnect, then the process
+      # exits cleanly. 60s gives long-poll connections time to drain.
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app: api } }
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -86,6 +106,14 @@ spec:
             - name: GROQ_API_KEY
               valueFrom:
                 secretKeyRef: { name: api-secrets, key: GROQ_API_KEY }
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability.svc.cluster.local:4318"
+            - name: OTEL_SERVICE_NAME
+              value: "simself-api"
+            - name: K8S_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: HOSTNAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
           readinessProbe:
             # /readyz performs deep checks: pings Redis and verifies the
             # WebSocket upgrade handler is accepting sessions. Failing the
@@ -103,7 +131,17 @@ spec:
             httpGet: { path: /healthz, port: http }
             failureThreshold: 30
             periodSeconds: 2
-
+          lifecycle:
+            preStop:
+              # Flip readiness off, then sleep so kube-proxy / ingress
+              # remove this pod from endpoints before SIGTERM hits Bun.
+              # Bun's SIGTERM handler then broadcasts a "drain" frame and
+              # closes idle WS sessions over the remaining grace window.
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "wget -q -O- http://127.0.0.1:8081/drain || true; sleep 15"
           resources:
             requests: { cpu: "150m", memory: "256Mi" }
             limits:   { cpu: "1",    memory: "1Gi" }
