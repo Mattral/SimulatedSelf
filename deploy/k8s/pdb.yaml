@@ -1,0 +1,22 @@
+# Pod Disruption Budgets — protect availability during voluntary disruptions
+# (node drains, cluster upgrades). With 3 replicas + maxUnavailable=1 we keep
+# at least 2 pods serving traffic at all times.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api
+  namespace: simulated-self
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app: api }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web
+  namespace: simulated-self
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app: web }

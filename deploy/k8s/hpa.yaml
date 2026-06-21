@@ -1,0 +1,27 @@
+# NOTE: API HPA lives in deployment.yaml (kept together for review locality).
+# This file adds an HPA for the web tier — scales on CPU since nginx is the
+# only frontend workload. Web pods are cheap (50m CPU) so scale aggressively.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web
+  namespace: simulated-self
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies: [{ type: Percent, value: 100, periodSeconds: 30 }]
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies: [{ type: Percent, value: 50, periodSeconds: 60 }]
