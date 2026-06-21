@@ -127,3 +127,34 @@ ReplicaSet is still serving while the rollback drains the new pods.
 - Logs: structured JSON, `[readyz] NOT READY {...}` lines are the
   canonical probe-failure record.
 - Dashboards: `Simulated-Self / API health` (Grafana folder).
+
+---
+## Drain & shutdown (added with K8s hardening)
+
+The API pod transitions through these states on `kubectl rollout restart` /
+node drain:
+
+1. **`preStop` fires** → `wget http://127.0.0.1:8081/drain`. Server flips
+   `draining=true`, `/readyz` starts returning 503, and every active WS
+   gets a `{"type":"drain"}` frame so clients reconnect through the LB
+   to a healthy pod.
+2. **kube-proxy / ingress remove the pod from endpoints** (~5–10s).
+3. **`SIGTERM`** — server waits `DRAIN_GRACE_MS` (default 15s), closes
+   any sockets still open with code `1001 shutdown`, then exits.
+
+`terminationGracePeriodSeconds: 60` gives this whole sequence headroom.
+If pods are being SIGKILLed, raise the grace period or lower
+`DRAIN_GRACE_MS`.
+
+## OpenTelemetry correlation
+
+Every response carries `x-request-id` and `x-trace-id`. To find a trace
+from a user-reported error:
+
+```bash
+kubectl logs -n simulated-self -l app=api --tail=10000 | grep <x-request-id>
+# then open Tempo / Jaeger at trace=<x-trace-id>
+```
+
+WebSocket sessions inherit `traceparent` from the upgrade request, so a
+single trace spans SPA → API → Redis → LLM.
