@@ -19,36 +19,47 @@ spec:
     rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
   selector:
     matchLabels: { app: web }
-  template:
-    metadata:
-      labels: { app: web }
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 101 # nginx
-        seccompProfile: { type: RuntimeDefault }
-      containers:
-        - name: web
-          image: ghcr.io/your-org/simulated-self-web:latest
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8080
-              name: http
-          readinessProbe:
-            httpGet: { path: /healthz, port: http }
-            initialDelaySeconds: 3
-            periodSeconds: 5
-          livenessProbe:
-            httpGet: { path: /healthz, port: http }
-            initialDelaySeconds: 10
-            periodSeconds: 15
-          resources:
-            requests: { cpu: "50m", memory: "64Mi" }
-            limits:   { cpu: "300m", memory: "256Mi" }
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
-            capabilities: { drop: ["ALL"] }
+    template:
+      metadata:
+        labels: { app: web }
+      spec:
+        terminationGracePeriodSeconds: 30
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector: { matchLabels: { app: web } }
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 101 # nginx
+          seccompProfile: { type: RuntimeDefault }
+        containers:
+          - name: web
+            image: ghcr.io/your-org/simulated-self-web:latest
+            imagePullPolicy: IfNotPresent
+            ports:
+              - containerPort: 8080
+                name: http
+            readinessProbe:
+              httpGet: { path: /healthz, port: http }
+              initialDelaySeconds: 3
+              periodSeconds: 5
+            livenessProbe:
+              httpGet: { path: /healthz, port: http }
+              initialDelaySeconds: 10
+              periodSeconds: 15
+            lifecycle:
+              preStop:
+                # Wait for ingress to remove pod from endpoints before nginx exits,
+                # avoiding 502s during rolling updates.
+                exec: { command: ["/bin/sh", "-c", "sleep 10 && nginx -s quit"] }
+            resources:
+              requests: { cpu: "50m", memory: "64Mi" }
+              limits:   { cpu: "300m", memory: "256Mi" }
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities: { drop: ["ALL"] }
 ---
 # =============================================================
 # Backend API Gateway (WebSockets + LLM + Redis client)
