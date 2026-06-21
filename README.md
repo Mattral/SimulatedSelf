@@ -5,7 +5,7 @@
 > Llama 3.1 voice pipeline.
 
 <p align="center">
-  <img src="docs/assets/hero.jpg" alt="Simulated Self hero" width="100%" />
+  <img src="docs/assets/hero.png" alt="Simulated Self — Iron Man 3D avatar mirroring real-time hand pose" width="100%" />
 </p>
 
 <p align="center">
