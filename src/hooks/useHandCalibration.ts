@@ -18,10 +18,20 @@ export function useHandCalibration(): UseHandCalibrationApi {
   const ref = useRef<HandCalibrator | null>(null);
   if (!ref.current) ref.current = new HandCalibrator();
 
-  const [status, setStatus] = useState({
-    Left: { calibrated: false, samplesCollected: 0, samplesRequired: 30 },
-    Right: { calibrated: false, samplesCollected: 0, samplesRequired: 30 },
+  const emptyStatus: CalibrationStatus = {
+    calibrated: false,
+    samplesCollected: 0,
+    samplesRequired: 30,
+    usingLastGood: false,
+    filterFallbackCount: 0,
+    dropoutCount: 0,
+    failureCount: 0,
+  };
+  const [status, setStatus] = useState<{ Left: CalibrationStatus; Right: CalibrationStatus }>({
+    Left: emptyStatus,
+    Right: emptyStatus,
   });
+
 
   const refreshStatus = useCallback(() => {
     const c = ref.current!;
