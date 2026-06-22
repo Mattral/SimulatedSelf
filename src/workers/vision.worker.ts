@@ -23,20 +23,25 @@
 import * as faceapi from '@vladmandic/face-api';
 
 type InboundMessage =
-  | { type: 'init'; modelUrl: string }
-  | { type: 'frame'; bitmap: ImageBitmap; ts: number }
+  | { type: 'init'; modelUrl: string; traceparent?: string }
+  | { type: 'frame'; bitmap: ImageBitmap; ts: number; traceparent?: string }
   | { type: 'dispose' };
 
 type OutboundMessage =
-  | { type: 'ready' }
-  | { type: 'error'; message: string; code?: string }
+  | { type: 'ready'; traceparent?: string }
+  | { type: 'error'; message: string; code?: string; traceparent?: string }
   | {
       type: 'emotion';
       ts: number;
       emotion: string;
       confidence: number;
       expressions: Record<string, number>;
+      /** W3C traceparent echoed from the originating `frame` message so the
+       *  end-to-end span (frame → preflight → inference → emotion) joins
+       *  the API/WebSocket trace tree in Grafana/Tempo. */
+      traceparent?: string;
     };
+
 
 let initialized = false;
 let busy = false;
