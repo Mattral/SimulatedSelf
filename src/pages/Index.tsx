@@ -9,6 +9,9 @@ import MicLevelMeter from '../components/MicLevelMeter';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { useEmotionAnalytics } from '../hooks/useEmotionAnalytics';
+import { useHandCalibration } from '../hooks/useHandCalibration';
+import CalibrationPanel from '../components/CalibrationPanel';
+
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
