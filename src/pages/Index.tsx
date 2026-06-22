@@ -60,7 +60,32 @@ const Index = () => {
     stopDetection: stopEmotionDetection,
   } = useEmotionAnalytics();
 
+  // Live hand calibration diagnostics (handedness, drift, last-good state).
+  const {
+    status: calibStatus,
+    beginCalibration,
+    resetCalibration,
+    update: updateCalibration,
+  } = useHandCalibration();
+
+  // Feed calibrator from pose landmarks so the panel reflects real state.
+  // We treat the dominant detected hand as "Right" by default and infer
+  // handedness from x-coordinate of the wrist landmark (selfie-flipped).
+  const [activeHand, setActiveHand] = useState<'Left' | 'Right' | null>(null);
+  useEffect(() => {
+    const lm: any = landmarks as any;
+    if (!lm) { setActiveHand(null); return; }
+    const handLm = lm.leftHand || lm.rightHand || lm.hand || lm.hands?.[0] || null;
+    if (!handLm) { setActiveHand(null); return; }
+    // Mirror-corrected: wrist.x < 0.5 → user's right hand on a selfie cam.
+    const wrist = handLm[0];
+    const hand: 'Left' | 'Right' = wrist && wrist.x < 0.5 ? 'Right' : 'Left';
+    setActiveHand(hand);
+    updateCalibration(handLm, hand);
+  }, [landmarks, updateCalibration]);
+
   const handlePermissionsGranted = async () => {
+
     setHasPermissions(true);
     await startDetection();
     setIsLoading(false);
