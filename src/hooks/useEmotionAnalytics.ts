@@ -174,7 +174,11 @@ export const useEmotionAnalytics = () => {
     };
 
     // Models are served from /models (public/models) — see public/models/models-info.txt.
-    worker.postMessage({ type: 'init', modelUrl: '/models' });
+    // Propagate W3C trace context into the worker so its outbound
+    // `emotion` messages can be stitched into the API/WebSocket span tree.
+    const { traceparent } = await import('@/lib/telemetry');
+    worker.postMessage({ type: 'init', modelUrl: '/models', traceparent: traceparent() });
+
     return worker;
   }, [smooth]);
 
