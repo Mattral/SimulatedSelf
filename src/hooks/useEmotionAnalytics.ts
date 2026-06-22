@@ -194,7 +194,9 @@ export const useEmotionAnalytics = () => {
     }
     try {
       const bitmap = await createImageBitmap(video);
-      worker.postMessage({ type: 'frame', bitmap, ts: Date.now() }, [bitmap]);
+      const { traceparent } = await import('@/lib/telemetry');
+      worker.postMessage({ type: 'frame', bitmap, ts: Date.now(), traceparent: traceparent() }, [bitmap]);
+
     } catch (err) {
       console.warn('[emotion] Frame transfer failed; using local heuristic fallback.', err);
       fallbackRef.current = true;
