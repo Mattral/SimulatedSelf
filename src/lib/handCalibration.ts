@@ -199,7 +199,17 @@ export interface CalibrationStatus {
   calibrated: boolean;
   samplesCollected: number;
   samplesRequired: number;
+  /** True when the last `update()` returned the cached last-good orientation
+   *  because the current frame was missing/low-confidence (drift fallback). */
+  usingLastGood: boolean;
+  /** Monotonic counter of One-Euro filter fallbacks (no prev sample). */
+  filterFallbackCount: number;
+  /** Monotonic counter of pose dropouts (frame with no usable raw quat). */
+  dropoutCount: number;
+  /** Monotonic counter of cancelled / incomplete calibration attempts. */
+  failureCount: number;
 }
+
 
 /**
  * Per-hand calibration + smoothing pipeline.
