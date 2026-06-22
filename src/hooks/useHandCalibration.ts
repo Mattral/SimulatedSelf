@@ -40,11 +40,11 @@ export function useHandCalibration(): UseHandCalibrationApi {
 
   const update = useCallback((lm: Landmark[] | null | undefined, hand: Handedness, tsMs = performance.now()) => {
     const q = ref.current!.update(lm, hand, tsMs);
-    // Status snapshots are cheap; only flush when collecting.
-    const s = ref.current!.status(hand);
-    if (!s.calibrated && s.samplesCollected > 0) refreshStatus();
+    // Refresh status every frame so the live panel reflects last-good / fallback flips.
+    refreshStatus();
     return q;
   }, [refreshStatus]);
+
 
   const beginCalibration = useCallback((hand: Handedness) => {
     ref.current!.beginCalibration(hand);
