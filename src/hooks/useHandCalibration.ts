@@ -38,12 +38,19 @@ export function useHandCalibration(): UseHandCalibrationApi {
     setStatus({ Left: c.status('Left'), Right: c.status('Right') });
   }, []);
 
+  const lastSig = useRef('');
   const update = useCallback((lm: Landmark[] | null | undefined, hand: Handedness, tsMs = performance.now()) => {
     const q = ref.current!.update(lm, hand, tsMs);
-    // Refresh status every frame so the live panel reflects last-good / fallback flips.
-    refreshStatus();
+    const s = ref.current!.status(hand);
+    // Cheap signature; only re-render when something visible changed.
+    const sig = `${hand}:${s.calibrated}:${s.samplesCollected}:${s.usingLastGood}:${s.dropoutCount}:${s.filterFallbackCount}`;
+    if (sig !== lastSig.current) {
+      lastSig.current = sig;
+      refreshStatus();
+    }
     return q;
   }, [refreshStatus]);
+
 
 
   const beginCalibration = useCallback((hand: Handedness) => {
