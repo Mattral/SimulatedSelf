@@ -193,6 +193,18 @@ const Index = () => {
           />
         </div>
 
+        {/* Live calibration diagnostics (top-left). */}
+        <div className="absolute top-4 left-4 z-40 hidden md:block">
+          <CalibrationPanel
+            status={calibStatus}
+            activeHand={activeHand}
+            onBeginCalibration={beginCalibration}
+            onReset={resetCalibration}
+          />
+        </div>
+
+
+
         <div className="absolute bottom-4 right-4 flex flex-col items-end z-50 space-y-2">
           <button
             onClick={() => setShowControlPanel(!showControlPanel)}
