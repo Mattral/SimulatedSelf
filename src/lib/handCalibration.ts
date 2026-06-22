@@ -232,6 +232,9 @@ export class HandCalibrator {
   private collecting: Handedness | null = null;
   private filters: Record<Handedness, OneEuroQuat>;
   private lastGood: Record<Handedness, Quat> = { Left: IDENTITY, Right: IDENTITY };
+  private usingLastGood: Record<Handedness, boolean> = { Left: false, Right: false };
+  private dropouts: Record<Handedness, number> = { Left: 0, Right: 0 };
+  private failures: Record<Handedness, number> = { Left: 0, Right: 0 };
   private readonly sampleFrames: number;
 
   constructor(opts: CalibratorOptions = {}) {
@@ -243,19 +246,32 @@ export class HandCalibrator {
   }
 
   beginCalibration(hand: Handedness) {
+    // If we were already collecting another hand, count it as a failed attempt.
+    if (this.collecting && this.collecting !== hand && !this.calibrated[this.collecting]) {
+      this.failures[this.collecting]++;
+    }
     this.collecting = hand;
     this.samples[hand] = [];
     this.calibrated[hand] = false;
     this.filters[hand].reset();
   }
 
-  cancelCalibration() { this.collecting = null; }
+  cancelCalibration() {
+    if (this.collecting && !this.calibrated[this.collecting]) {
+      this.failures[this.collecting]++;
+    }
+    this.collecting = null;
+  }
 
   status(hand: Handedness): CalibrationStatus {
     return {
       calibrated: this.calibrated[hand],
       samplesCollected: this.samples[hand].length,
       samplesRequired: this.sampleFrames,
+      usingLastGood: this.usingLastGood[hand],
+      filterFallbackCount: this.filters[hand].fallbackCount,
+      dropoutCount: this.dropouts[hand],
+      failureCount: this.failures[hand],
     };
   }
 
@@ -267,24 +283,23 @@ export class HandCalibrator {
       this.samples[h] = [];
       this.filters[h].reset();
       this.lastGood[h] = IDENTITY;
+      this.usingLastGood[h] = false;
     }
   }
 
-  /**
-   * Feed a frame of landmarks. Returns the avatar-space quaternion
-   * (calibration-corrected, smoothed) or `null` when the hand isn't
-   * visible enough to trust this frame.
-   */
   update(lm: Landmark[] | null | undefined, hand: Handedness, tsMs: number): Quat | null {
     if (!lm) {
-      // Decay toward last good orientation rather than snapping.
+      this.dropouts[hand]++;
+      this.usingLastGood[hand] = true;
       return this.lastGood[hand];
     }
     const raw = palmQuaternion(lm, hand);
-    if (!raw) return this.lastGood[hand];
+    if (!raw) {
+      this.dropouts[hand]++;
+      this.usingLastGood[hand] = true;
+      return this.lastGood[hand];
+    }
 
-    // Sample collection mid-calibration: average via iterative slerp
-    // toward the running mean (avoids the sign-ambiguity of naive mean).
     if (this.collecting === hand && !this.calibrated[hand]) {
       this.samples[hand].push(raw);
       if (this.samples[hand].length >= this.sampleFrames) {
@@ -298,13 +313,14 @@ export class HandCalibrator {
       }
     }
 
-    // Calibration offset: rotate raw into rest-frame.
     const corrected = this.calibrated[hand] ? qMul(this.restInverse[hand], raw) : raw;
     const filtered = this.filters[hand].filter(corrected, tsMs);
     this.lastGood[hand] = filtered;
+    this.usingLastGood[hand] = false;
     return filtered;
   }
 }
 
 // Re-exports for tests / non-class callers
 export const _internals = { palmQuaternion, slerp, basisToQuat, OneEuroQuat };
+
