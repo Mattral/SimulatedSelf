@@ -18,23 +18,40 @@ export function useHandCalibration(): UseHandCalibrationApi {
   const ref = useRef<HandCalibrator | null>(null);
   if (!ref.current) ref.current = new HandCalibrator();
 
-  const [status, setStatus] = useState({
-    Left: { calibrated: false, samplesCollected: 0, samplesRequired: 30 },
-    Right: { calibrated: false, samplesCollected: 0, samplesRequired: 30 },
+  const emptyStatus: CalibrationStatus = {
+    calibrated: false,
+    samplesCollected: 0,
+    samplesRequired: 30,
+    usingLastGood: false,
+    filterFallbackCount: 0,
+    dropoutCount: 0,
+    failureCount: 0,
+  };
+  const [status, setStatus] = useState<{ Left: CalibrationStatus; Right: CalibrationStatus }>({
+    Left: emptyStatus,
+    Right: emptyStatus,
   });
+
 
   const refreshStatus = useCallback(() => {
     const c = ref.current!;
     setStatus({ Left: c.status('Left'), Right: c.status('Right') });
   }, []);
 
+  const lastSig = useRef('');
   const update = useCallback((lm: Landmark[] | null | undefined, hand: Handedness, tsMs = performance.now()) => {
     const q = ref.current!.update(lm, hand, tsMs);
-    // Status snapshots are cheap; only flush when collecting.
     const s = ref.current!.status(hand);
-    if (!s.calibrated && s.samplesCollected > 0) refreshStatus();
+    // Cheap signature; only re-render when something visible changed.
+    const sig = `${hand}:${s.calibrated}:${s.samplesCollected}:${s.usingLastGood}:${s.dropoutCount}:${s.filterFallbackCount}`;
+    if (sig !== lastSig.current) {
+      lastSig.current = sig;
+      refreshStatus();
+    }
     return q;
   }, [refreshStatus]);
+
+
 
   const beginCalibration = useCallback((hand: Handedness) => {
     ref.current!.beginCalibration(hand);

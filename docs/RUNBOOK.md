@@ -158,3 +158,37 @@ kubectl logs -n simulated-self -l app=api --tail=10000 | grep <x-request-id>
 
 WebSocket sessions inherit `traceparent` from the upgrade request, so a
 single trace spans SPA → API → Redis → LLM.
+
+## HPA scaling load-test verification
+
+Run before any release that changes WebSocket session affinity, the drain
+hook, or the HPA target metric. Confirms that scale-up under sustained
+video traffic does not drop client sessions.
+
+```bash
+BASE_URL=https://staging.simself.example.com \
+  VUS=400 DURATION=10m \
+  ./scripts/load-test-hpa.sh
+```
+
+Pass criteria:
+
+| Signal                                    | Threshold                       |
+| ----------------------------------------- | ------------------------------- |
+| `ws_unexpected_close` (k6 counter)        | < 5 over the whole run          |
+| `ws_drain_frames` received                | ≥ 1 per scale-down event        |
+| `/diagnostics/vision` p99 latency         | < 1500 ms                       |
+| HPA `currentReplicas`                     | rises within 60 s of saturation |
+| Pod transitions in `pods.log`             | `Running → Terminating` only after a drain frame was sent |
+
+If `ws_unexpected_close > 0`:
+1. Inspect `pods.log` for `Terminating` pods that lacked a preceding
+   `drain` frame in `k6.log`.
+2. Check `kubectl describe pod <name>` for `preStop` exit codes.
+3. Raise `terminationGracePeriodSeconds`, or shorten `DRAIN_GRACE_MS`,
+   so the broadcast completes before the pod is killed.
+
+Pose-quality SLO regressions show up here too: a sudden jump in
+`pose_calibration_failure_rate` or `one_euro_filter_fallback_total`
+during the run usually means the new pods are cold-starting models —
+warm them via the readiness probe before the HPA marks them Ready.

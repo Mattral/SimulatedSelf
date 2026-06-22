@@ -23,20 +23,25 @@
 import * as faceapi from '@vladmandic/face-api';
 
 type InboundMessage =
-  | { type: 'init'; modelUrl: string }
-  | { type: 'frame'; bitmap: ImageBitmap; ts: number }
+  | { type: 'init'; modelUrl: string; traceparent?: string }
+  | { type: 'frame'; bitmap: ImageBitmap; ts: number; traceparent?: string }
   | { type: 'dispose' };
 
 type OutboundMessage =
-  | { type: 'ready' }
-  | { type: 'error'; message: string; code?: string }
+  | { type: 'ready'; traceparent?: string }
+  | { type: 'error'; message: string; code?: string; traceparent?: string }
   | {
       type: 'emotion';
       ts: number;
       emotion: string;
       confidence: number;
       expressions: Record<string, number>;
+      /** W3C traceparent echoed from the originating `frame` message so the
+       *  end-to-end span (frame → preflight → inference → emotion) joins
+       *  the API/WebSocket trace tree in Grafana/Tempo. */
+      traceparent?: string;
     };
+
 
 let initialized = false;
 let busy = false;
@@ -74,27 +79,25 @@ async function preflight(modelUrl: string): Promise<void> {
   }
 }
 
-async function init(modelUrl: string) {
-  if (initialized) return;
-  // eslint-disable-next-line no-console
-  console.info('[vision.worker] init — verifying model URLs at', modelUrl);
+async function init(modelUrl: string, traceparent?: string) {
+  if (initialized) { post({ type: 'ready', traceparent }); return; }
+  console.info('[vision.worker] init — verifying model URLs at', modelUrl,
+    traceparent ? `(traceparent=${traceparent})` : '');
   try {
     await preflight(modelUrl);
     await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
     await faceapi.nets.faceExpressionNet.loadFromUri(modelUrl);
     initialized = true;
-    // eslint-disable-next-line no-console
     console.info('[vision.worker] ready — face-api models loaded');
-    post({ type: 'ready' });
+    post({ type: 'ready', traceparent });
   } catch (err) {
     const message = (err as Error).message || String(err);
-    // eslint-disable-next-line no-console
     console.error('[vision.worker] init failed:', message);
-    post({ type: 'error', message, code: 'MODEL_LOAD_FAILED' });
+    post({ type: 'error', message, code: 'MODEL_LOAD_FAILED', traceparent });
   }
 }
 
-async function processFrame(bitmap: ImageBitmap, ts: number) {
+async function processFrame(bitmap: ImageBitmap, ts: number, traceparent?: string) {
   if (!initialized || busy) {
     bitmap.close();
     return;
@@ -118,15 +121,14 @@ async function processFrame(bitmap: ImageBitmap, ts: number) {
       let top = 'neutral';
       let best = 0;
       for (const [k, v] of Object.entries(e)) {
-        if (v > best) {
-          best = v;
-          top = k;
-        }
+        if (v > best) { best = v; top = k; }
       }
-      post({ type: 'emotion', ts, emotion: top, confidence: best, expressions: e });
+      // Echo traceparent so the main thread can stitch frame→inference→emotion
+      // into the same end-to-end span exported via OTLP.
+      post({ type: 'emotion', ts, emotion: top, confidence: best, expressions: e, traceparent });
     }
   } catch (err) {
-    post({ type: 'error', message: (err as Error).message, code: 'INFERENCE_FAILED' });
+    post({ type: 'error', message: (err as Error).message, code: 'INFERENCE_FAILED', traceparent });
   } finally {
     bitmap.close();
     busy = false;
@@ -137,13 +139,14 @@ ctx.onmessage = (ev: MessageEvent<InboundMessage>) => {
   const msg = ev.data;
   switch (msg.type) {
     case 'init':
-      void init(msg.modelUrl);
+      void init(msg.modelUrl, msg.traceparent);
       break;
     case 'frame':
-      void processFrame(msg.bitmap, msg.ts);
+      void processFrame(msg.bitmap, msg.ts, msg.traceparent);
       break;
     case 'dispose':
       initialized = false;
+
       break;
   }
 };

@@ -75,3 +75,62 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "WS soft cap approaching — HPA should scale; investigate if not."
+
+    # ---------------------------------------------------------------
+    # Pose-quality SLO
+    #   SLI: fraction of frames returning a calibrated, non-fallback
+    #        orientation (i.e. not relying on last-good).
+    #   SLO: 99% of frames over 30m return live pose.
+    # ---------------------------------------------------------------
+    - name: simself.slo.pose_quality
+      interval: 30s
+      rules:
+        - record: simself:pose_calibration_failure_rate:5m
+          expr: |
+            sum(rate(pose_calibration_failures_total[5m]))
+              /
+            clamp_min(sum(rate(pose_calibration_attempts_total[5m])), 1)
+        - record: simself:one_euro_fallback_rate:5m
+          expr: sum(rate(one_euro_filter_fallback_total[5m]))
+        - record: simself:pose_dropout_rate:5m
+          expr: sum(rate(pose_dropout_total[5m]))
+        - record: simself:model_dropout_rate:5m
+          expr: sum(rate(vision_model_dropout_total[5m]))
+
+        - alert: SimselfPoseCalibrationFailingFastBurn
+          # >10% calibration attempts failing over both 5m and 1h windows
+          expr: |
+            simself:pose_calibration_failure_rate:5m > 0.10
+              and
+            (sum(rate(pose_calibration_failures_total[1h]))
+              / clamp_min(sum(rate(pose_calibration_attempts_total[1h])), 1)) > 0.10
+          for: 5m
+          labels: { severity: critical, slo: pose_quality }
+          annotations:
+            summary: "Hand-pose calibration failure rate > 10%"
+            runbook: "docs/RUNBOOK.md#hpa-scaling-load-test-verification"
+
+        - alert: SimselfOneEuroFilterFallbackHigh
+          # Filter cold-starting / resetting more than 5 times/sec across fleet
+          # — typically signals dropped frames or pose worker restarts.
+          expr: simself:one_euro_fallback_rate:5m > 5
+          for: 10m
+          labels: { severity: warning, slo: pose_quality }
+          annotations:
+            summary: "One-Euro filter falling back >5/s — pose smoothing degraded"
+
+        - alert: SimselfPoseDropoutsHigh
+          expr: simself:pose_dropout_rate:5m > 30
+          for: 10m
+          labels: { severity: warning, slo: pose_quality }
+          annotations:
+            summary: "Pose dropouts > 30/s — landmark visibility gate failing"
+
+        - alert: SimselfVisionModelDropoutsHigh
+          expr: simself:model_dropout_rate:5m > 1
+          for: 5m
+          labels: { severity: critical, slo: pose_quality }
+          annotations:
+            summary: "Vision model returning no detections > 1/s — model URL or worker regression"
+            runbook: "docs/RUNBOOK.md#openтelemetry-correlation"
+
