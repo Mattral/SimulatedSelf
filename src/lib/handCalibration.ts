@@ -130,26 +130,32 @@ class OneEuroQuat {
   private prev: Quat | null = null;
   private prevTs = 0;
   private dCutoff = 1.0;
+  /** Times the filter took the "no previous sample" path (cold start /
+   *  reset). Surfaced as `one_euro_filter_fallback_total` for SLO alerts. */
+  public fallbackCount = 0;
   constructor(private minCutoff = 1.0, private beta = 0.7) {}
 
   filter(q: Quat, tsMs: number): Quat {
-    if (!this.prev) { this.prev = q; this.prevTs = tsMs; return q; }
+    if (!this.prev) {
+      this.fallbackCount++;
+      this.prev = q; this.prevTs = tsMs; return q;
+    }
     const dt = Math.max(1e-3, (tsMs - this.prevTs) / 1000);
-    // angular distance between prev and current → derivative magnitude
     const d = Math.min(1, Math.abs(qDot(this.prev, q)));
-    const speed = Math.acos(d) / dt; // rad / s
+    const speed = Math.acos(d) / dt;
     const cutoff = this.minCutoff + this.beta * speed;
     const tau = 1 / (2 * Math.PI * cutoff);
     const alpha = 1 / (1 + tau / dt);
     const out = qNorm(slerp(this.prev, q, alpha));
     this.prev = out;
     this.prevTs = tsMs;
-    void this.dCutoff; // reserved for future tuning
+    void this.dCutoff;
     return out;
   }
 
   reset() { this.prev = null; }
 }
+
 
 export type Handedness = 'Left' | 'Right';
 
