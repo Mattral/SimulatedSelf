@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getTelemetryId } from "@/lib/telemetryId";
+
 
 export type RenderStage =
   | "boot"
