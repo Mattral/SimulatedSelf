@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from "react";
+import { getTelemetryId } from "@/lib/telemetryId";
 
 interface Props {
   children: ReactNode;
@@ -13,22 +14,20 @@ interface State {
 
 /**
  * App-wide error boundary. Catches render exceptions and shows a detailed
- * fallback UI including a telemetry correlation id that can be matched to
- * traces/logs in Grafana / OTel.
+ * fallback UI including the shared telemetry correlation id (same one used
+ * by the env preflight and DiagnosticsOverlay), so a single grep across
+ * logs/traces reveals the entire failure path.
  */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = {
     hasError: false,
     error: null,
     errorInfo: null,
-    telemetryId: "",
+    telemetryId: getTelemetryId(),
   };
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    const telemetryId =
-      (globalThis.crypto as Crypto | undefined)?.randomUUID?.() ??
-      `err-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    return { hasError: true, error, telemetryId };
+    return { hasError: true, error, telemetryId: getTelemetryId() };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
