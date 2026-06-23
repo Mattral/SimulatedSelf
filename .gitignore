@@ -24,6 +24,6 @@ dist-ssr
 *.sw?
 
 # Local env files
-.env
+# .env committed so VITE_SUPABASE_* reach published build
 .env.local
 .env.*.local
