@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getTelemetryId } from "@/lib/telemetryId";
+
 
 export type RenderStage =
   | "boot"
@@ -51,6 +53,7 @@ export function DiagnosticsOverlay({ stage, cameraPermission = "unknown", extra 
         maxWidth: 320,
       }}
     >
+      <div>tid: <span data-testid="diag-telemetry-id">{getTelemetryId()}</span></div>
       <div>stage: <span data-testid="diag-stage">{stage}</span></div>
       <div>camera: <span data-testid="diag-camera">{cameraPermission}</span></div>
       {extra &&
