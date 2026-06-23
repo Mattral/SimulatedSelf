@@ -1,0 +1,119 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "title": "Simulated Self — Calibration & E2E Traces",
+  "tags": ["simulated-self", "calibration", "otel"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource_prom",
+        "type": "datasource",
+        "query": "prometheus",
+        "label": "Prometheus"
+      },
+      {
+        "name": "datasource_tempo",
+        "type": "datasource",
+        "query": "tempo",
+        "label": "Tempo"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Calibration health",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Calibration failure rate (5m)",
+      "datasource": { "type": "prometheus", "uid": "${datasource_prom}" },
+      "gridPos": { "x": 0, "y": 1, "w": 6, "h": 5 },
+      "targets": [
+        {
+          "expr": "sum(rate(simself_calibration_failures_total[5m])) / clamp_min(sum(rate(simself_calibration_attempts_total[5m])), 1)",
+          "legendFormat": "failure rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 0.02 },
+          { "color": "red", "value": 0.05 }
+        ]}}
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "One-Euro fallback usage",
+      "datasource": { "type": "prometheus", "uid": "${datasource_prom}" },
+      "gridPos": { "x": 6, "y": 1, "w": 9, "h": 8 },
+      "targets": [
+        { "expr": "sum(rate(simself_oneeuro_fallback_total[1m])) by (reason)", "legendFormat": "{{reason}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Pose & model dropouts",
+      "datasource": { "type": "prometheus", "uid": "${datasource_prom}" },
+      "gridPos": { "x": 15, "y": 1, "w": 9, "h": 8 },
+      "targets": [
+        { "expr": "sum(rate(simself_pose_dropouts_total[1m]))", "legendFormat": "pose dropouts" },
+        { "expr": "sum(rate(simself_model_dropouts_total[1m]))", "legendFormat": "model dropouts" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Using last-good orientation (live)",
+      "datasource": { "type": "prometheus", "uid": "${datasource_prom}" },
+      "gridPos": { "x": 0, "y": 6, "w": 6, "h": 3 },
+      "targets": [
+        { "expr": "max(simself_calibration_using_last_good)", "legendFormat": "active sessions" }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "End-to-end OpenTelemetry spans",
+      "gridPos": { "x": 0, "y": 9, "w": 24, "h": 1 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "E2E hand → pose → rotation p95 (ms)",
+      "datasource": { "type": "prometheus", "uid": "${datasource_prom}" },
+      "gridPos": { "x": 0, "y": 10, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(simself_e2e_span_duration_ms_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(simself_e2e_span_duration_ms_bucket[5m])))",
+          "legendFormat": "p50"
+        }
+      ]
+    },
+    {
+      "type": "traces",
+      "title": "Recent traces (e2e=true)",
+      "datasource": { "type": "tempo", "uid": "${datasource_tempo}" },
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 },
+      "targets": [
+        { "queryType": "traceqlSearch", "query": "{ service.name=\"simself-api\" && span.simself.e2e=true }" }
+      ]
+    }
+  ]
+}
