@@ -200,11 +200,14 @@ const Index = () => {
           />
         </div>
 
-        {/* Live calibration diagnostics (top-left). */}
-        <div className="absolute top-4 left-4 z-40 hidden md:block">
+        {/* Live calibration diagnostics — collapsible pill.
+            Desktop: top-left under the title. Mobile: above the menu. */}
+        <div className="absolute z-40 top-20 right-4 md:top-auto md:right-auto md:bottom-4 md:left-[17.5rem]">
           <CalibrationPanel
             status={calibStatus}
             activeHand={activeHand}
+            open={showCalibration}
+            onOpenChange={setShowCalibration}
             onBeginCalibration={beginCalibration}
             onReset={resetCalibration}
           />
