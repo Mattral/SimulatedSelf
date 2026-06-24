@@ -74,7 +74,14 @@ export function renderPreflightFailure(result: PreflightResult): void {
   const root = document.getElementById("root");
   if (!root) return;
 
-  const list = result.missing.map((m) => `<li><code>${m}</code></li>`).join("");
+  const escape = (s: string) =>
+    s.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  const missingItems = result.missing.map((m) => `<li><code>${escape(m)}</code> — missing</li>`).join("");
+  const invalidItems = result.invalid
+    .map((i) => `<li><code>${escape(i.name)}</code> — ${escape(i.reason)}</li>`)
+    .join("");
+  const list = missingItems + invalidItems;
 
   root.innerHTML = `
     <div role="alert" data-testid="preflight-failure"
@@ -82,11 +89,11 @@ export function renderPreflightFailure(result: PreflightResult): void {
              font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;">
       <div style="max-width:880px;margin:0 auto;">
         <h1 style="font-size:1.5rem;margin-bottom:0.5rem;">
-          App can't start — missing environment variables
+          App can't start — environment configuration is invalid
         </h1>
         <p style="opacity:0.8;margin-bottom:1rem;">
-          The Supabase client could not be initialized. Add the variables below
-          to your hosting provider (e.g. Vercel → Settings → Environment Variables)
+          The Supabase client could not be initialized. Fix the variables below
+          in your hosting provider (e.g. Vercel → Settings → Environment Variables)
           and redeploy.
         </p>
         <ul style="background:#16161f;border:1px solid #2a2a35;border-radius:8px;
