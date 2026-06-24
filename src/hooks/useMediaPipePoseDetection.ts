@@ -175,8 +175,11 @@ export const useMediaPipePoseDetection = () => {
               z: lm.z || 0,
             }));
             handsData.push(lms);
-            if (handedness.label === 'Left') leftHand = lms;
-            else rightHand = lms;
+            // The webcam feed is mirrored (selfie view), so MediaPipe's
+            // "Left"/"Right" labels are flipped from the user's perspective.
+            // Swap them so the user's physical left hand is reported as Left.
+            if (handedness.label === 'Left') rightHand = lms;
+            else leftHand = lms;
           });
         }
 

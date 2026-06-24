@@ -68,20 +68,27 @@ const Index = () => {
     update: updateCalibration,
   } = useHandCalibration();
 
-  // Feed calibrator from pose landmarks so the panel reflects real state.
-  // We treat the dominant detected hand as "Right" by default and infer
-  // handedness from x-coordinate of the wrist landmark (selfie-flipped).
+  // Feed calibrator using the mirror-corrected handedness from the pose
+  // pipeline (already swapped at the source). Both hands are fed every
+  // frame when present so "first hand on screen" is never misclassified.
   const [activeHand, setActiveHand] = useState<'Left' | 'Right' | null>(null);
+  const [showCalibration, setShowCalibration] = useState(false);
   useEffect(() => {
     const lm: any = landmarks as any;
     if (!lm) { setActiveHand(null); return; }
-    const handLm = lm.leftHand || lm.rightHand || lm.hand || lm.hands?.[0] || null;
-    if (!handLm) { setActiveHand(null); return; }
-    // Mirror-corrected: wrist.x < 0.5 → user's right hand on a selfie cam.
-    const wrist = handLm[0];
-    const hand: 'Left' | 'Right' = wrist && wrist.x < 0.5 ? 'Right' : 'Left';
-    setActiveHand(hand);
-    updateCalibration(handLm, hand);
+    const left = lm.leftHand ?? null;
+    const right = lm.rightHand ?? null;
+    if (left) updateCalibration(left, 'Left');
+    if (right) updateCalibration(right, 'Right');
+    // "Active" = the hand whose wrist is closest to the camera (largest z
+    // negative magnitude) or, if both present, the most-recently-updated.
+    if (left && !right) setActiveHand('Left');
+    else if (right && !left) setActiveHand('Right');
+    else if (left && right) {
+      const lz = left[0]?.z ?? 0;
+      const rz = right[0]?.z ?? 0;
+      setActiveHand(lz <= rz ? 'Left' : 'Right');
+    } else setActiveHand(null);
   }, [landmarks, updateCalibration]);
 
   const handlePermissionsGranted = async () => {
