@@ -19,6 +19,9 @@ const Index = () => {
   const [isHumanoidMode, setIsHumanoidMode] = useState(true);
   const [showInstructions, setShowInstructions] = useState(true);
   const [showControlPanel, setShowControlPanel] = useState(true);
+  /** 'mirror' → robot faces you and mirrors your moves (default).
+   *  'direct' → robot faces away and moves in the same direction you do. */
+  const [viewMode, setViewMode] = useState<'mirror' | 'direct'>('mirror');
   const sceneRef = useRef<any>(null);
 
   const {
