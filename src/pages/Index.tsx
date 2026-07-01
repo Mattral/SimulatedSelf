@@ -163,7 +163,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gray-900 overflow-hidden">
       <div className="relative w-full h-screen">
-        <Scene3D ref={sceneRef} className="w-full h-full" isHumanoidMode={isHumanoidMode} />
+        <Scene3D ref={sceneRef} className="w-full h-full" isHumanoidMode={isHumanoidMode} viewMode={viewMode} />
 
         {showInstructions && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
