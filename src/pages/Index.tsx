@@ -309,7 +309,7 @@ const Index = () => {
                   title="Pose Detection"
                 />
                 <div
-                  className={`w-3 h-3 rounded-full ${landmarks?.hands?.length ? 'bg-blue-400' : 'bg-gray-400'}`}
+                  className={`w-3 h-3 rounded-full ${landmarks?.hands?.some((h) => h && h.length >= 21) ? 'bg-blue-400' : 'bg-gray-400'}`}
                   title="Hand Detection"
                 />
                 <div
