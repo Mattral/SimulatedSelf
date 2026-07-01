@@ -117,6 +117,13 @@ const Index = () => {
     sceneRef.current?.setHumanoidMode(newMode);
   };
 
+  const handleViewModeToggle = () => {
+    const next = viewMode === 'mirror' ? 'direct' : 'mirror';
+    setViewMode(next);
+    sceneRef.current?.setViewMode(next);
+  };
+
+
   // Pass pose data to 3D skeleton
   useEffect(() => {
     if (sceneRef.current && landmarks) sceneRef.current.updateSkeletonPose(landmarks);
