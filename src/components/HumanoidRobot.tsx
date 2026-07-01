@@ -386,6 +386,18 @@ export class HumanoidRobot {
     this.faceManager.updateEmotion(emotion);
   }
 
+  /** Toggle mirror vs direct orientation.
+   *  Implemented by rotating the whole robot group 180° on Y — this
+   *  keeps all downstream landmark math untouched while presenting the
+   *  robot's back to the camera in "direct" mode.
+   *  Also mirrors the face plane so features don't render backwards. */
+  public setViewMode(mode: 'mirror' | 'direct') {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    this.group.rotation.y = mode === 'direct' ? Math.PI : 0;
+  }
+
+
   private updateBodyPositions(pose: Landmark[], visibility: VisibilityState) {
     let neckPosition = this.defaultPositions.neck.clone();
     let headPosition = this.defaultPositions.head.clone();
