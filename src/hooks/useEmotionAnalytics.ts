@@ -120,6 +120,16 @@ export const useEmotionAnalytics = () => {
       .filter((s) => now - s.timestamp < HISTORY_WINDOW_MS)
       .slice(-HISTORY_MAX);
 
+    // Fast path — trust a confident single frame instead of averaging
+    // it down to neutral. This is what makes big smiles / surprise land.
+    if (sample.confidence >= HIGH_CONFIDENCE_BYPASS) {
+      latestRef.current = sample;
+      setCurrentEmotion(sample.emotion);
+      setConfidence(sample.confidence);
+      setExpressions(sample.expressions);
+      return;
+    }
+
     const buckets: Record<string, { count: number; total: number }> = {};
     for (const s of historyRef.current) {
       buckets[s.emotion] ||= { count: 0, total: 0 };
@@ -145,7 +155,6 @@ export const useEmotionAnalytics = () => {
       timestamp: now,
     };
     latestRef.current = smoothed;
-    // React state update is rate-limited by the natural SAMPLE_INTERVAL_MS.
     setCurrentEmotion(best);
     setConfidence(bestConf);
     setExpressions(sample.expressions);
