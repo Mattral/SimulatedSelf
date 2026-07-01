@@ -45,6 +45,11 @@ export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMod
       if (skeletonRef.current) {
         skeletonRef.current.updateEmotion(emotion);
       }
+    },
+    setViewMode: (mode: 'mirror' | 'direct') => {
+      if (skeletonRef.current) {
+        skeletonRef.current.setViewMode(mode);
+      }
     }
   }));
 
@@ -54,6 +59,13 @@ export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMod
       skeletonRef.current.setHumanoidMode(isHumanoidMode);
     }
   }, [isHumanoidMode]);
+
+  // Update view mode (mirror vs direct) when prop changes.
+  useEffect(() => {
+    if (skeletonRef.current) {
+      skeletonRef.current.setViewMode(viewMode);
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     if (!mountRef.current) return;
