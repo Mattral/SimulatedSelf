@@ -545,15 +545,24 @@ export class HumanoidRobot {
         const handName = handIndex === 0 ? 'leftHand' : 'rightHand';
         const wristIndex = handIndex === 0 ? 15 : 16;
         const bodyWrist = landmarks.pose[wristIndex];
-        
+
         if (bodyWrist && bodyWrist.visibility > 0.5 && hand.length >= 21) {
           const wristPos = this.convertLandmarkToWorldPosition(bodyWrist);
+
+          // Palm depth estimation: MediaPipe's hand model returns a
+          // per-hand relative z at hand[0].z. Amplify it into world Z so
+          // pushing the palm toward or away from the camera actually
+          // translates the robot's hand along the depth axis.
+          const palmDepth = (hand[0]?.z ?? 0) * -3.5;
+          wristPos.z += palmDepth;
+
           this.bones[handName].position.copy(wristPos);
           this.bones[handName].visible = true;
         }
       });
     }
   }
+
 
   private createStructuralConnections() {
     this.connections.forEach(connection => this.group.remove(connection));
