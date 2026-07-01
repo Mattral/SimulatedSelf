@@ -22,6 +22,9 @@ export class HumanoidRobot {
   private currentEmotion: string = 'neutral';
   private panelLines: THREE.Object3D[] = [];
   private isModelsLoaded: boolean = false;
+  /** 'mirror' → robot faces the camera and mirrors the user (default).
+   *  'direct' → robot faces away so it moves like a shadow puppet of the user. */
+  private viewMode: 'mirror' | 'direct' = 'mirror';
 
   constructor() {
     this.group = new THREE.Group();
@@ -383,6 +386,18 @@ export class HumanoidRobot {
     this.faceManager.updateEmotion(emotion);
   }
 
+  /** Toggle mirror vs direct orientation.
+   *  Implemented by rotating the whole robot group 180° on Y — this
+   *  keeps all downstream landmark math untouched while presenting the
+   *  robot's back to the camera in "direct" mode.
+   *  Also mirrors the face plane so features don't render backwards. */
+  public setViewMode(mode: 'mirror' | 'direct') {
+    if (this.viewMode === mode) return;
+    this.viewMode = mode;
+    this.group.rotation.y = mode === 'direct' ? Math.PI : 0;
+  }
+
+
   private updateBodyPositions(pose: Landmark[], visibility: VisibilityState) {
     let neckPosition = this.defaultPositions.neck.clone();
     let headPosition = this.defaultPositions.head.clone();
@@ -530,15 +545,24 @@ export class HumanoidRobot {
         const handName = handIndex === 0 ? 'leftHand' : 'rightHand';
         const wristIndex = handIndex === 0 ? 15 : 16;
         const bodyWrist = landmarks.pose[wristIndex];
-        
+
         if (bodyWrist && bodyWrist.visibility > 0.5 && hand.length >= 21) {
           const wristPos = this.convertLandmarkToWorldPosition(bodyWrist);
+
+          // Palm depth estimation: MediaPipe's hand model returns a
+          // per-hand relative z at hand[0].z. Amplify it into world Z so
+          // pushing the palm toward or away from the camera actually
+          // translates the robot's hand along the depth axis.
+          const palmDepth = (hand[0]?.z ?? 0) * -3.5;
+          wristPos.z += palmDepth;
+
           this.bones[handName].position.copy(wristPos);
           this.bones[handName].visible = true;
         }
       });
     }
   }
+
 
   private createStructuralConnections() {
     this.connections.forEach(connection => this.group.remove(connection));

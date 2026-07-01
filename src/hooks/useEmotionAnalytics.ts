@@ -26,9 +26,17 @@ export interface EmotionSnapshot {
   timestamp: number;
 }
 
-const SAMPLE_INTERVAL_MS = 350;
-const HISTORY_WINDOW_MS = 2500;
-const HISTORY_MAX = 8;
+// Tuned for responsive face-api readouts:
+//   - 220ms sample cadence keeps CPU low while giving ~4.5 Hz updates.
+//   - A 1200ms sliding window is long enough to reject a single noisy
+//     frame but short enough that a genuine smile/frown surfaces fast.
+const SAMPLE_INTERVAL_MS = 220;
+const HISTORY_WINDOW_MS = 1200;
+const HISTORY_MAX = 6;
+/** Confidence at which a single raw frame overrides the smoother —
+ *  face-api emits very sharp softmaxes for clear expressions, and
+ *  temporal averaging otherwise pins these back to "neutral". */
+const HIGH_CONFIDENCE_BYPASS = 0.65;
 
 const EMPTY_EXPRESSIONS = {
   happy: 0,
@@ -112,6 +120,16 @@ export const useEmotionAnalytics = () => {
       .filter((s) => now - s.timestamp < HISTORY_WINDOW_MS)
       .slice(-HISTORY_MAX);
 
+    // Fast path — trust a confident single frame instead of averaging
+    // it down to neutral. This is what makes big smiles / surprise land.
+    if (sample.confidence >= HIGH_CONFIDENCE_BYPASS) {
+      latestRef.current = sample;
+      setCurrentEmotion(sample.emotion);
+      setConfidence(sample.confidence);
+      setExpressions(sample.expressions);
+      return;
+    }
+
     const buckets: Record<string, { count: number; total: number }> = {};
     for (const s of historyRef.current) {
       buckets[s.emotion] ||= { count: 0, total: 0 };
@@ -137,7 +155,6 @@ export const useEmotionAnalytics = () => {
       timestamp: now,
     };
     latestRef.current = smoothed;
-    // React state update is rate-limited by the natural SAMPLE_INTERVAL_MS.
     setCurrentEmotion(best);
     setConfidence(bestConf);
     setExpressions(sample.expressions);

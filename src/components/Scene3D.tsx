@@ -5,9 +5,10 @@ import { SkeletonRenderer } from './SkeletonRenderer';
 interface Scene3DProps {
   className?: string;
   isHumanoidMode?: boolean;
+  viewMode?: 'mirror' | 'direct';
 }
 
-export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMode = false }, ref) => {
+export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMode = false, viewMode = 'mirror' }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
@@ -44,6 +45,11 @@ export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMod
       if (skeletonRef.current) {
         skeletonRef.current.updateEmotion(emotion);
       }
+    },
+    setViewMode: (mode: 'mirror' | 'direct') => {
+      if (skeletonRef.current) {
+        skeletonRef.current.setViewMode(mode);
+      }
     }
   }));
 
@@ -53,6 +59,13 @@ export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMod
       skeletonRef.current.setHumanoidMode(isHumanoidMode);
     }
   }, [isHumanoidMode]);
+
+  // Update view mode (mirror vs direct) when prop changes.
+  useEffect(() => {
+    if (skeletonRef.current) {
+      skeletonRef.current.setViewMode(viewMode);
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     if (!mountRef.current) return;

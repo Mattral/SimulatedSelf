@@ -19,6 +19,9 @@ const Index = () => {
   const [isHumanoidMode, setIsHumanoidMode] = useState(true);
   const [showInstructions, setShowInstructions] = useState(true);
   const [showControlPanel, setShowControlPanel] = useState(true);
+  /** 'mirror' → robot faces you and mirrors your moves (default).
+   *  'direct' → robot faces away and moves in the same direction you do. */
+  const [viewMode, setViewMode] = useState<'mirror' | 'direct'>('mirror');
   const sceneRef = useRef<any>(null);
 
   const {
@@ -114,6 +117,13 @@ const Index = () => {
     sceneRef.current?.setHumanoidMode(newMode);
   };
 
+  const handleViewModeToggle = () => {
+    const next = viewMode === 'mirror' ? 'direct' : 'mirror';
+    setViewMode(next);
+    sceneRef.current?.setViewMode(next);
+  };
+
+
   // Pass pose data to 3D skeleton
   useEffect(() => {
     if (sceneRef.current && landmarks) sceneRef.current.updateSkeletonPose(landmarks);
@@ -153,7 +163,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gray-900 overflow-hidden">
       <div className="relative w-full h-screen">
-        <Scene3D ref={sceneRef} className="w-full h-full" isHumanoidMode={isHumanoidMode} />
+        <Scene3D ref={sceneRef} className="w-full h-full" isHumanoidMode={isHumanoidMode} viewMode={viewMode} />
 
         {showInstructions && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
@@ -278,6 +288,18 @@ const Index = () => {
                 </button>
 
                 <button
+                  onClick={handleViewModeToggle}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                    viewMode === 'mirror'
+                      ? 'bg-cyan-500 hover:bg-cyan-600'
+                      : 'bg-indigo-500 hover:bg-indigo-600'
+                  }`}
+                  title={viewMode === 'mirror' ? 'Mirror mode — robot faces you' : 'Direct mode — robot faces away'}
+                >
+                  {viewMode === 'mirror' ? '🪞' : '👤'}
+                </button>
+
+                <button
                   onClick={resetPose}
                   className="w-12 h-12 rounded-full bg-gray-600 hover:bg-gray-700 flex items-center justify-center transition-all"
                   title="Reset Pose"
@@ -309,7 +331,7 @@ const Index = () => {
                   title="Pose Detection"
                 />
                 <div
-                  className={`w-3 h-3 rounded-full ${landmarks?.hands?.length ? 'bg-blue-400' : 'bg-gray-400'}`}
+                  className={`w-3 h-3 rounded-full ${landmarks?.hands?.some((h) => h && h.length >= 21) ? 'bg-blue-400' : 'bg-gray-400'}`}
                   title="Hand Detection"
                 />
                 <div
@@ -335,6 +357,9 @@ const Index = () => {
           <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-white">
             <p className="text-sm font-medium">
               Mode: {isHumanoidMode ? '🤖 Humanoid (Default)' : '📍 Landmarks'}
+              <span className="ml-2 text-xs text-cyan-300">
+                {viewMode === 'mirror' ? '🪞 Mirror' : '👤 Direct'}
+              </span>
             </p>
             {isEmotionActive && currentEmotion !== 'neutral' && (
               <p className="text-xs text-purple-300 capitalize">

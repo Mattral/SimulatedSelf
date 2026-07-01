@@ -114,6 +114,14 @@ export class SkeletonRenderer {
     });
   }
 
+  /** Forwarded to the humanoid robot so it can face the camera (mirror)
+   *  or face away (direct). Landmark skeleton mode is unaffected. */
+  public setViewMode(mode: 'mirror' | 'direct') {
+    if (this.humanoidRobot) {
+      this.humanoidRobot.setViewMode(mode);
+    }
+  }
+
   public updateEmotion(emotion: string) {
     if (this.humanoidRobot) {
       this.humanoidRobot.updateEmotion(emotion);
