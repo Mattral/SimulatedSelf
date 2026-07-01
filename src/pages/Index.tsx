@@ -357,6 +357,9 @@ const Index = () => {
           <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2 text-white">
             <p className="text-sm font-medium">
               Mode: {isHumanoidMode ? '🤖 Humanoid (Default)' : '📍 Landmarks'}
+              <span className="ml-2 text-xs text-cyan-300">
+                {viewMode === 'mirror' ? '🪞 Mirror' : '👤 Direct'}
+              </span>
             </p>
             {isEmotionActive && currentEmotion !== 'neutral' && (
               <p className="text-xs text-purple-300 capitalize">
