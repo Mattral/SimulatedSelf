@@ -204,10 +204,13 @@ export class FingerManager {
   }
 
   private convertLandmarkToWorldPosition(landmark: any): THREE.Vector3 {
+    // Amplified z gives visible palm depth when the user pushes their
+    // hand toward / away from the camera. The x/y scale matches the
+    // rest of the humanoid pipeline so fingers stay attached to the wrist.
     return new THREE.Vector3(
       -(landmark.x - 0.5) * 4,
       -(landmark.y - 0.5) * 3,
-      -landmark.z * 2
+      -landmark.z * 4,
     );
   }
 }
