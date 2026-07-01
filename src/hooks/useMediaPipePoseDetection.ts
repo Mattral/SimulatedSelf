@@ -162,7 +162,6 @@ export const useMediaPipePoseDetection = () => {
 
       // Hands results — written to ref, throttled into React state.
       hands.onResults((results: any) => {
-        const handsData: Landmark[][] = [];
         let leftHand: Landmark[] | undefined;
         let rightHand: Landmark[] | undefined;
 
@@ -174,7 +173,6 @@ export const useMediaPipePoseDetection = () => {
               y: lm.y,
               z: lm.z || 0,
             }));
-            handsData.push(lms);
             // The webcam feed is mirrored (selfie view), so MediaPipe's
             // "Left"/"Right" labels are flipped from the user's perspective.
             // Swap them so the user's physical left hand is reported as Left.
@@ -182,6 +180,16 @@ export const useMediaPipePoseDetection = () => {
             else leftHand = lms;
           });
         }
+
+        // Ordered tuple: index 0 = user's LEFT hand, index 1 = user's RIGHT.
+        // Downstream (HumanoidRobot, FingerManager) keys strictly by index,
+        // so keeping the slot even when a hand is missing prevents the
+        // "left palm shows as right" bug that occurred when MediaPipe
+        // returned a single hand in detection order.
+        const handsData: Landmark[][] = [
+          leftHand ?? [],
+          rightHand ?? [],
+        ];
 
         writeLandmarks({ hands: handsData, leftHand, rightHand });
       });
