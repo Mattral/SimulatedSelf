@@ -288,6 +288,18 @@ const Index = () => {
                 </button>
 
                 <button
+                  onClick={handleViewModeToggle}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                    viewMode === 'mirror'
+                      ? 'bg-cyan-500 hover:bg-cyan-600'
+                      : 'bg-indigo-500 hover:bg-indigo-600'
+                  }`}
+                  title={viewMode === 'mirror' ? 'Mirror mode — robot faces you' : 'Direct mode — robot faces away'}
+                >
+                  {viewMode === 'mirror' ? '🪞' : '👤'}
+                </button>
+
+                <button
                   onClick={resetPose}
                   className="w-12 h-12 rounded-full bg-gray-600 hover:bg-gray-700 flex items-center justify-center transition-all"
                   title="Reset Pose"
