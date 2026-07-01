@@ -5,9 +5,10 @@ import { SkeletonRenderer } from './SkeletonRenderer';
 interface Scene3DProps {
   className?: string;
   isHumanoidMode?: boolean;
+  viewMode?: 'mirror' | 'direct';
 }
 
-export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMode = false }, ref) => {
+export const Scene3D = forwardRef<any, Scene3DProps>(({ className, isHumanoidMode = false, viewMode = 'mirror' }, ref) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
