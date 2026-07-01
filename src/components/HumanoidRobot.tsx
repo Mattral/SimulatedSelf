@@ -22,6 +22,9 @@ export class HumanoidRobot {
   private currentEmotion: string = 'neutral';
   private panelLines: THREE.Object3D[] = [];
   private isModelsLoaded: boolean = false;
+  /** 'mirror' → robot faces the camera and mirrors the user (default).
+   *  'direct' → robot faces away so it moves like a shadow puppet of the user. */
+  private viewMode: 'mirror' | 'direct' = 'mirror';
 
   constructor() {
     this.group = new THREE.Group();
