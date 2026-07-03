@@ -117,7 +117,7 @@ async function processFrame(bitmap: ImageBitmap, ts: number, traceparent?: strin
         // inputSize 320 balances latency (~35ms on M-class CPUs) with
         // recall; scoreThreshold 0.35 catches partial / side-lit faces
         // that the previous 0.5 cutoff was silently dropping.
-        new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.35 }),
+        new faceapi.TinyFaceDetectorOptions({ inputSize: detectorInputSize, scoreThreshold: detectorScoreThreshold }),
       )
       .withFaceExpressions();
 
