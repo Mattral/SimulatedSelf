@@ -63,6 +63,9 @@ const Index = () => {
     isModelLoading: isEmotionModelLoading,
     startDetection: startEmotionDetection,
     stopDetection: stopEmotionDetection,
+    settings: emotionSettings,
+    updateSettings: updateEmotionSettings,
+    resetSettings: resetEmotionSettings,
   } = useEmotionAnalytics();
 
   // Live hand calibration diagnostics (handedness, drift, last-good state).
