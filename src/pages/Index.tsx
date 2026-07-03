@@ -11,6 +11,8 @@ import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { useEmotionAnalytics } from '../hooks/useEmotionAnalytics';
 import { useHandCalibration } from '../hooks/useHandCalibration';
 import CalibrationPanel from '../components/CalibrationPanel';
+import PalmOverlay from '../components/PalmOverlay';
+import EmotionSettingsPanel from '../components/EmotionSettingsPanel';
 
 
 const Index = () => {
@@ -61,6 +63,9 @@ const Index = () => {
     isModelLoading: isEmotionModelLoading,
     startDetection: startEmotionDetection,
     stopDetection: stopEmotionDetection,
+    settings: emotionSettings,
+    updateSettings: updateEmotionSettings,
+    resetSettings: resetEmotionSettings,
   } = useEmotionAnalytics();
 
   // Live hand calibration diagnostics (handedness, drift, last-good state).
@@ -379,7 +384,7 @@ const Index = () => {
         </div>
 
         {isEmotionActive && (
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
             <MoodDisplay
               emotion={currentEmotion}
               confidence={emotionConfidence}
@@ -387,8 +392,22 @@ const Index = () => {
               isActive={isEmotionActive}
               variant="ai"
             />
+            <EmotionSettingsPanel
+              settings={emotionSettings}
+              onChange={updateEmotionSettings}
+              onReset={resetEmotionSettings}
+            />
           </div>
         )}
+
+        {/* Palm labels + depth indicators + view-mode chip */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+          <PalmOverlay
+            leftHand={(landmarks as any)?.leftHand}
+            rightHand={(landmarks as any)?.rightHand}
+            viewMode={viewMode}
+          />
+        </div>
 
         <div className="absolute top-4 left-4">
           <h1 className="font-bold text-white mb-2 text-xl">

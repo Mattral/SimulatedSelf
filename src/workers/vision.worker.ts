@@ -24,6 +24,7 @@ import * as faceapi from '@vladmandic/face-api';
 
 type InboundMessage =
   | { type: 'init'; modelUrl: string; traceparent?: string }
+  | { type: 'configure'; inputSize?: number; scoreThreshold?: number }
   | { type: 'frame'; bitmap: ImageBitmap; ts: number; traceparent?: string }
   | { type: 'dispose' };
 
@@ -36,15 +37,16 @@ type OutboundMessage =
       emotion: string;
       confidence: number;
       expressions: Record<string, number>;
-      /** W3C traceparent echoed from the originating `frame` message so the
-       *  end-to-end span (frame → preflight → inference → emotion) joins
-       *  the API/WebSocket trace tree in Grafana/Tempo. */
       traceparent?: string;
     };
 
 
 let initialized = false;
 let busy = false;
+// Runtime-tunable detector options — updated via `configure` from the UI
+// settings panel so the user can calibrate for their lighting live.
+let detectorInputSize = 320;
+let detectorScoreThreshold = 0.35;
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -115,7 +117,7 @@ async function processFrame(bitmap: ImageBitmap, ts: number, traceparent?: strin
         // inputSize 320 balances latency (~35ms on M-class CPUs) with
         // recall; scoreThreshold 0.35 catches partial / side-lit faces
         // that the previous 0.5 cutoff was silently dropping.
-        new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.35 }),
+        new faceapi.TinyFaceDetectorOptions({ inputSize: detectorInputSize, scoreThreshold: detectorScoreThreshold }),
       )
       .withFaceExpressions();
 
@@ -143,6 +145,17 @@ ctx.onmessage = (ev: MessageEvent<InboundMessage>) => {
   switch (msg.type) {
     case 'init':
       void init(msg.modelUrl, msg.traceparent);
+      break;
+    case 'configure':
+      if (typeof msg.inputSize === 'number') {
+        // face-api requires input size to be a multiple of 32.
+        const snapped = Math.max(128, Math.min(608, Math.round(msg.inputSize / 32) * 32));
+        detectorInputSize = snapped;
+      }
+      if (typeof msg.scoreThreshold === 'number') {
+        detectorScoreThreshold = Math.max(0.05, Math.min(0.95, msg.scoreThreshold));
+      }
+      console.info('[vision.worker] configured', { detectorInputSize, detectorScoreThreshold });
       break;
     case 'frame':
       void processFrame(msg.bitmap, msg.ts, msg.traceparent);

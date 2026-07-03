@@ -26,17 +26,23 @@ export interface EmotionSnapshot {
   timestamp: number;
 }
 
-// Tuned for responsive face-api readouts:
-//   - 220ms sample cadence keeps CPU low while giving ~4.5 Hz updates.
-//   - A 1200ms sliding window is long enough to reject a single noisy
-//     frame but short enough that a genuine smile/frown surfaces fast.
-const SAMPLE_INTERVAL_MS = 220;
-const HISTORY_WINDOW_MS = 1200;
-const HISTORY_MAX = 6;
-/** Confidence at which a single raw frame overrides the smoother —
- *  face-api emits very sharp softmaxes for clear expressions, and
- *  temporal averaging otherwise pins these back to "neutral". */
-const HIGH_CONFIDENCE_BYPASS = 0.65;
+// Defaults tuned for responsive face-api readouts. Any of these can be
+// overridden at runtime through `updateSettings()` — wired to the
+// in-app "Emotion Settings" panel so the user can calibrate for their
+// lighting without a rebuild.
+const DEFAULT_SETTINGS = {
+  sampleIntervalMs: 220,
+  historyWindowMs: 1200,
+  historyMax: 6,
+  /** Confidence at which a single raw frame overrides the smoother. */
+  highConfidenceBypass: 0.65,
+  /** face-api TinyFaceDetector input size (multiple of 32). */
+  inputSize: 320,
+  /** face-api TinyFaceDetector score threshold. */
+  scoreThreshold: 0.35,
+};
+
+export type EmotionSettings = typeof DEFAULT_SETTINGS;
 
 const EMPTY_EXPRESSIONS = {
   happy: 0,
@@ -112,17 +118,21 @@ export const useEmotionAnalytics = () => {
   const historyRef = useRef<EmotionSnapshot[]>([]);
   const sampleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Live-tunable settings. Mutating the ref takes effect on the next
+  // sample tick / worker frame without tearing down the pipeline.
+  const settingsRef = useRef<EmotionSettings>({ ...DEFAULT_SETTINGS });
+  const [settings, setSettingsState] = useState<EmotionSettings>({ ...DEFAULT_SETTINGS });
 
   const smooth = useCallback((sample: EmotionSnapshot) => {
     const now = sample.timestamp;
     historyRef.current.push(sample);
     historyRef.current = historyRef.current
-      .filter((s) => now - s.timestamp < HISTORY_WINDOW_MS)
-      .slice(-HISTORY_MAX);
+      .filter((s) => now - s.timestamp < settingsRef.current.historyWindowMs)
+      .slice(-settingsRef.current.historyMax);
 
     // Fast path — trust a confident single frame instead of averaging
     // it down to neutral. This is what makes big smiles / surprise land.
-    if (sample.confidence >= HIGH_CONFIDENCE_BYPASS) {
+    if (sample.confidence >= settingsRef.current.highConfidenceBypass) {
       latestRef.current = sample;
       setCurrentEmotion(sample.emotion);
       setConfidence(sample.confidence);
@@ -232,7 +242,7 @@ export const useEmotionAnalytics = () => {
       }
       setIsActive(true);
       sampleTimerRef.current && clearInterval(sampleTimerRef.current);
-      sampleTimerRef.current = setInterval(pumpFrame, SAMPLE_INTERVAL_MS);
+      sampleTimerRef.current = setInterval(pumpFrame, settingsRef.current.sampleIntervalMs);
     },
     [ensureWorker, pumpFrame],
   );
@@ -249,6 +259,28 @@ export const useEmotionAnalytics = () => {
       sampleTimerRef.current = null;
     }
   }, []);
+
+  const updateSettings = useCallback((patch: Partial<EmotionSettings>) => {
+    const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
+    setSettingsState(next);
+    // Push detector options into the worker (safe to send even before
+    // `ready`; worker stores them and uses them on the next frame).
+    if (workerRef.current && (patch.inputSize !== undefined || patch.scoreThreshold !== undefined)) {
+      workerRef.current.postMessage({
+        type: 'configure',
+        inputSize: next.inputSize,
+        scoreThreshold: next.scoreThreshold,
+      });
+    }
+    // Restart the sample timer if cadence changed and we're active.
+    if (patch.sampleIntervalMs !== undefined && sampleTimerRef.current) {
+      clearInterval(sampleTimerRef.current);
+      sampleTimerRef.current = setInterval(pumpFrame, next.sampleIntervalMs);
+    }
+  }, [pumpFrame]);
+
+  const resetSettings = useCallback(() => updateSettings({ ...DEFAULT_SETTINGS }), [updateSettings]);
 
   useEffect(() => {
     return () => {
@@ -269,5 +301,8 @@ export const useEmotionAnalytics = () => {
     latestRef,
     startDetection,
     stopDetection,
+    settings,
+    updateSettings,
+    resetSettings,
   };
 };
