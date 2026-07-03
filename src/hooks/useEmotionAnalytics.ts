@@ -26,17 +26,23 @@ export interface EmotionSnapshot {
   timestamp: number;
 }
 
-// Tuned for responsive face-api readouts:
-//   - 220ms sample cadence keeps CPU low while giving ~4.5 Hz updates.
-//   - A 1200ms sliding window is long enough to reject a single noisy
-//     frame but short enough that a genuine smile/frown surfaces fast.
-const SAMPLE_INTERVAL_MS = 220;
-const HISTORY_WINDOW_MS = 1200;
-const HISTORY_MAX = 6;
-/** Confidence at which a single raw frame overrides the smoother —
- *  face-api emits very sharp softmaxes for clear expressions, and
- *  temporal averaging otherwise pins these back to "neutral". */
-const HIGH_CONFIDENCE_BYPASS = 0.65;
+// Defaults tuned for responsive face-api readouts. Any of these can be
+// overridden at runtime through `updateSettings()` — wired to the
+// in-app "Emotion Settings" panel so the user can calibrate for their
+// lighting without a rebuild.
+const DEFAULT_SETTINGS = {
+  sampleIntervalMs: 220,
+  historyWindowMs: 1200,
+  historyMax: 6,
+  /** Confidence at which a single raw frame overrides the smoother. */
+  highConfidenceBypass: 0.65,
+  /** face-api TinyFaceDetector input size (multiple of 32). */
+  inputSize: 320,
+  /** face-api TinyFaceDetector score threshold. */
+  scoreThreshold: 0.35,
+};
+
+export type EmotionSettings = typeof DEFAULT_SETTINGS;
 
 const EMPTY_EXPRESSIONS = {
   happy: 0,
