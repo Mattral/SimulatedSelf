@@ -43,8 +43,10 @@ type OutboundMessage =
 
 let initialized = false;
 let busy = false;
-
-const ctx = self as unknown as DedicatedWorkerGlobalScope;
+// Runtime-tunable detector options — updated via `configure` from the UI
+// settings panel so the user can calibrate for their lighting live.
+let detectorInputSize = 320;
+let detectorScoreThreshold = 0.35;
 
 const REQUIRED_MANIFESTS = [
   'tiny_face_detector_model-weights_manifest.json',
