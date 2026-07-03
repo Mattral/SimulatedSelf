@@ -48,6 +48,8 @@ let busy = false;
 let detectorInputSize = 320;
 let detectorScoreThreshold = 0.35;
 
+const ctx = self as unknown as DedicatedWorkerGlobalScope;
+
 const REQUIRED_MANIFESTS = [
   'tiny_face_detector_model-weights_manifest.json',
   'face_expression_model-weights_manifest.json',
