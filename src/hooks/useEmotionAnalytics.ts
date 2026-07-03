@@ -127,12 +127,12 @@ export const useEmotionAnalytics = () => {
     const now = sample.timestamp;
     historyRef.current.push(sample);
     historyRef.current = historyRef.current
-      .filter((s) => now - s.timestamp < HISTORY_WINDOW_MS)
-      .slice(-HISTORY_MAX);
+      .filter((s) => now - s.timestamp < settingsRef.current.historyWindowMs)
+      .slice(-settingsRef.current.historyMax);
 
     // Fast path — trust a confident single frame instead of averaging
     // it down to neutral. This is what makes big smiles / surprise land.
-    if (sample.confidence >= HIGH_CONFIDENCE_BYPASS) {
+    if (sample.confidence >= settingsRef.current.highConfidenceBypass) {
       latestRef.current = sample;
       setCurrentEmotion(sample.emotion);
       setConfidence(sample.confidence);
