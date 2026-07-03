@@ -242,7 +242,7 @@ export const useEmotionAnalytics = () => {
       }
       setIsActive(true);
       sampleTimerRef.current && clearInterval(sampleTimerRef.current);
-      sampleTimerRef.current = setInterval(pumpFrame, SAMPLE_INTERVAL_MS);
+      sampleTimerRef.current = setInterval(pumpFrame, settingsRef.current.sampleIntervalMs);
     },
     [ensureWorker, pumpFrame],
   );
