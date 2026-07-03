@@ -146,6 +146,17 @@ ctx.onmessage = (ev: MessageEvent<InboundMessage>) => {
     case 'init':
       void init(msg.modelUrl, msg.traceparent);
       break;
+    case 'configure':
+      if (typeof msg.inputSize === 'number') {
+        // face-api requires input size to be a multiple of 32.
+        const snapped = Math.max(128, Math.min(608, Math.round(msg.inputSize / 32) * 32));
+        detectorInputSize = snapped;
+      }
+      if (typeof msg.scoreThreshold === 'number') {
+        detectorScoreThreshold = Math.max(0.05, Math.min(0.95, msg.scoreThreshold));
+      }
+      console.info('[vision.worker] configured', { detectorInputSize, detectorScoreThreshold });
+      break;
     case 'frame':
       void processFrame(msg.bitmap, msg.ts, msg.traceparent);
       break;
