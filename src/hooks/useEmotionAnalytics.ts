@@ -260,6 +260,28 @@ export const useEmotionAnalytics = () => {
     }
   }, []);
 
+  const updateSettings = useCallback((patch: Partial<EmotionSettings>) => {
+    const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
+    setSettingsState(next);
+    // Push detector options into the worker (safe to send even before
+    // `ready`; worker stores them and uses them on the next frame).
+    if (workerRef.current && (patch.inputSize !== undefined || patch.scoreThreshold !== undefined)) {
+      workerRef.current.postMessage({
+        type: 'configure',
+        inputSize: next.inputSize,
+        scoreThreshold: next.scoreThreshold,
+      });
+    }
+    // Restart the sample timer if cadence changed and we're active.
+    if (patch.sampleIntervalMs !== undefined && sampleTimerRef.current) {
+      clearInterval(sampleTimerRef.current);
+      sampleTimerRef.current = setInterval(pumpFrame, next.sampleIntervalMs);
+    }
+  }, [pumpFrame]);
+
+  const resetSettings = useCallback(() => updateSettings({ ...DEFAULT_SETTINGS }), [updateSettings]);
+
   useEffect(() => {
     return () => {
       stopDetection();
@@ -279,5 +301,8 @@ export const useEmotionAnalytics = () => {
     latestRef,
     startDetection,
     stopDetection,
+    settings,
+    updateSettings,
+    resetSettings,
   };
 };
