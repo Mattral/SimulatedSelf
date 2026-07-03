@@ -11,6 +11,8 @@ import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
 import { useEmotionAnalytics } from '../hooks/useEmotionAnalytics';
 import { useHandCalibration } from '../hooks/useHandCalibration';
 import CalibrationPanel from '../components/CalibrationPanel';
+import PalmOverlay from '../components/PalmOverlay';
+import EmotionSettingsPanel from '../components/EmotionSettingsPanel';
 
 
 const Index = () => {
