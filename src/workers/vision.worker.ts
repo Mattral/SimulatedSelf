@@ -24,6 +24,7 @@ import * as faceapi from '@vladmandic/face-api';
 
 type InboundMessage =
   | { type: 'init'; modelUrl: string; traceparent?: string }
+  | { type: 'configure'; inputSize?: number; scoreThreshold?: number }
   | { type: 'frame'; bitmap: ImageBitmap; ts: number; traceparent?: string }
   | { type: 'dispose' };
 
@@ -36,9 +37,6 @@ type OutboundMessage =
       emotion: string;
       confidence: number;
       expressions: Record<string, number>;
-      /** W3C traceparent echoed from the originating `frame` message so the
-       *  end-to-end span (frame → preflight → inference → emotion) joins
-       *  the API/WebSocket trace tree in Grafana/Tempo. */
       traceparent?: string;
     };
 
