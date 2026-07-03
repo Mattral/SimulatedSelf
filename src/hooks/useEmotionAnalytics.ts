@@ -118,6 +118,10 @@ export const useEmotionAnalytics = () => {
   const historyRef = useRef<EmotionSnapshot[]>([]);
   const sampleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Live-tunable settings. Mutating the ref takes effect on the next
+  // sample tick / worker frame without tearing down the pipeline.
+  const settingsRef = useRef<EmotionSettings>({ ...DEFAULT_SETTINGS });
+  const [settings, setSettingsState] = useState<EmotionSettings>({ ...DEFAULT_SETTINGS });
 
   const smooth = useCallback((sample: EmotionSnapshot) => {
     const now = sample.timestamp;
