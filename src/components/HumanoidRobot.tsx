@@ -547,15 +547,14 @@ export class HumanoidRobot {
         const bodyWrist = landmarks.pose[wristIndex];
 
         if (bodyWrist && bodyWrist.visibility > 0.5 && hand.length >= 21) {
+          // The palm mesh is ALWAYS locked to the body-wrist joint so it
+          // stays physically attached to the forearm/upper-arm chain.
+          // Depth (Z) is inherited from the pose wrist landmark — which
+          // already carries the shoulder→elbow→wrist relationship — instead
+          // of being re-derived from the hand model. Re-deriving it caused
+          // the palm to visually detach from the arm (the "floating palm"
+          // bug seen when hand[0].z diverged from pose[15/16].z).
           const wristPos = this.convertLandmarkToWorldPosition(bodyWrist);
-
-          // Palm depth estimation: MediaPipe's hand model returns a
-          // per-hand relative z at hand[0].z. Amplify it into world Z so
-          // pushing the palm toward or away from the camera actually
-          // translates the robot's hand along the depth axis.
-          const palmDepth = (hand[0]?.z ?? 0) * -3.5;
-          wristPos.z += palmDepth;
-
           this.bones[handName].position.copy(wristPos);
           this.bones[handName].visible = true;
         }
