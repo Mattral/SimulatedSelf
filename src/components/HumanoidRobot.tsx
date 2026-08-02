@@ -321,12 +321,11 @@ export class HumanoidRobot {
   }
 
   private convertLandmarkToWorldPosition(landmark: any): THREE.Vector3 {
-    return new THREE.Vector3(
-      -(landmark.x - 0.5) * 4,
-      -(landmark.y - 0.5) * 3,
-      -landmark.z * 2
-    );
+    // View-mode aware: limb orientation is re-derived from these points every
+    // frame, so Direct mode is correct even with fallback capsule meshes.
+    return landmarkToWorld(landmark, this.viewMode);
   }
+
 
   public updatePose(landmarks: any) {
     if (!landmarks) {
