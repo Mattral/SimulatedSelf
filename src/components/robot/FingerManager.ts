@@ -2,12 +2,20 @@
 import * as THREE from 'three';
 import { Landmark } from '../../hooks/usePoseDetection';
 import { RobotMaterials } from './MaterialManager';
+import { landmarkToWorld, ViewMode } from '../../lib/viewSpace';
 
 export class FingerManager {
   private group: THREE.Group;
   private materials: RobotMaterials;
   private fingerLandmarks: { [key: string]: THREE.Mesh[] } = {};
   private fingerConnections: { [key: string]: THREE.LineSegments[] } = {};
+  private viewMode: ViewMode = 'mirror';
+
+  /** Keeps finger landmarks in the same view space as the body/limbs. */
+  public setViewMode(mode: ViewMode) {
+    this.viewMode = mode;
+  }
+
 
   constructor(group: THREE.Group, materials: RobotMaterials) {
     this.group = group;
