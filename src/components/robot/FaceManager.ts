@@ -118,7 +118,7 @@ export class FaceManager {
   }
 
   public updateFacePosition(headPos: THREE.Vector3, isVisible: boolean) {
-    this.updateFaceSet(this.frontFace, headPos, 0.31, isVisible);
+    this.updateFaceSet(this.frontFace, headPos, 0.31 * this.faceSign, isVisible);
     this.applyFacialExpression(this.currentEmotion);
   }
 
@@ -151,7 +151,7 @@ export class FaceManager {
   }
 
   private applyFacialExpression(emotion: string) {
-    this.applyExpressionToFace(this.frontFace, emotion, 0.31);
+    this.applyExpressionToFace(this.frontFace, emotion, 0.31 * this.faceSign);
   }
 
   private applyExpressionToFace(features: FaceFeatures, emotion: string, zOffset: number) {
