@@ -5,6 +5,8 @@ import { FaceManager } from './robot/FaceManager';
 import { FingerManager } from './robot/FingerManager';
 import { VisibilityManager, VisibilityState } from './robot/VisibilityManager';
 import { ModelLoader, LoadedModels } from './robot/ModelLoader';
+import { landmarkToWorld, ViewMode } from '../lib/viewSpace';
+
 
 export class HumanoidRobot {
   public group: THREE.Group;
