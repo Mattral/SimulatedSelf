@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "simself",
+      "version": "0.1.0",
+      "title": "SimSelf"
+    },
+    "tools": [
+      {
+        "name": "get_app_overview",
+        "title": "Get app overview",
+        "description": "Return a structured overview of SimSelf: what it does, its capabilities, and the vision models it uses.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "explain_tracking_pipeline",
+        "title": "Explain a tracking pipeline",
+        "description": "Explain how one of SimSelf's pipelines works (pose, emotion, calibration, voice), including stages and troubleshooting hints.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "pipeline": {
+              "type": "string",
+              "enum": [
+                "pose",
+                "emotion",
+                "calibration",
+                "voice"
+              ],
+              "description": "Which pipeline to explain."
+            }
+          },
+          "required": [
+            "pipeline"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "check_vision_models",
+        "title": "Check vision model assets",
+        "description": "Preflight the public face-api model weight files hosted by the app and report which ones are reachable. Useful for diagnosing emotion-detection failures.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "baseUrl": {
+              "type": "string",
+              "format": "uri",
+              "description": "Public origin of the deployed app, e.g. https://simulated-self.vercel.app. Model files are checked under <baseUrl>/models/."
+            }
+          },
+          "required": [
+            "baseUrl"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
