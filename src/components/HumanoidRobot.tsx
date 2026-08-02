@@ -388,15 +388,30 @@ export class HumanoidRobot {
   }
 
   /** Toggle mirror vs direct orientation.
-   *  Implemented by rotating the whole robot group 180° on Y — this
-   *  keeps all downstream landmark math untouched while presenting the
-   *  robot's back to the camera in "direct" mode.
-   *  Also mirrors the face plane so features don't render backwards. */
-  public setViewMode(mode: 'mirror' | 'direct') {
+   *  The 180° turn is baked into the landmark → world transform (see
+   *  `lib/viewSpace`) instead of rotating the parent group, so every limb
+   *  (upper arm, forearm, thigh, shin) has its orientation re-derived from
+   *  view-space endpoints each frame. That keeps Direct-mode placement
+   *  correct even when the Iron-Man meshes fail to load and the fallback
+   *  capsules are rendered. Only the "facing" parts (head, neck, torso,
+   *  shoulders and the face plane) are flipped so the robot shows its back. */
+  public setViewMode(mode: ViewMode) {
     if (this.viewMode === mode) return;
     this.viewMode = mode;
-    this.group.rotation.y = mode === 'direct' ? Math.PI : 0;
+
+    // Keep the parent group untouched — orientation is data-driven now.
+    this.group.rotation.y = 0;
+
+    const facingYaw = mode === 'direct' ? Math.PI : 0;
+    ['head', 'neck', 'torso', 'leftShoulder', 'rightShoulder', 'leftHip', 'rightHip']
+      .forEach(name => {
+        if (this.bones[name]) this.bones[name].rotation.y = facingYaw;
+      });
+
+    this.faceManager.setViewMode(mode);
+    this.fingerManager.setViewMode(mode);
   }
+
 
 
   private updateBodyPositions(pose: Landmark[], visibility: VisibilityState) {
