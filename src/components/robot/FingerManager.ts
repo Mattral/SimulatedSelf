@@ -2,12 +2,20 @@
 import * as THREE from 'three';
 import { Landmark } from '../../hooks/usePoseDetection';
 import { RobotMaterials } from './MaterialManager';
+import { landmarkToWorld, ViewMode } from '../../lib/viewSpace';
 
 export class FingerManager {
   private group: THREE.Group;
   private materials: RobotMaterials;
   private fingerLandmarks: { [key: string]: THREE.Mesh[] } = {};
   private fingerConnections: { [key: string]: THREE.LineSegments[] } = {};
+  private viewMode: ViewMode = 'mirror';
+
+  /** Keeps finger landmarks in the same view space as the body/limbs. */
+  public setViewMode(mode: ViewMode) {
+    this.viewMode = mode;
+  }
+
 
   constructor(group: THREE.Group, materials: RobotMaterials) {
     this.group = group;
@@ -204,14 +212,11 @@ export class FingerManager {
   }
 
   private convertLandmarkToWorldPosition(landmark: any): THREE.Vector3 {
-    // Must mirror HumanoidRobot.convertLandmarkToWorldPosition exactly
-    // (x*4, y*3, z*2). If z-scale diverges here, fingers and the palm
-    // mesh drift apart along the depth axis — which is exactly what
-    // caused the "palm detached from hand" bug.
-    return new THREE.Vector3(
-      -(landmark.x - 0.5) * 4,
-      -(landmark.y - 0.5) * 3,
-      -landmark.z * 2,
-    );
+    // Shares the exact transform used by HumanoidRobot (see lib/viewSpace),
+    // including view mode. If the scale or the mirror/direct sign diverges
+    // here, fingers and the palm mesh drift apart — the "palm detached from
+    // hand" bug.
+    return landmarkToWorld(landmark, this.viewMode);
   }
 }
+

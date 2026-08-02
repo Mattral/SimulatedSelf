@@ -19,6 +19,15 @@ export class FaceManager {
   private group: THREE.Group;
   private materials: RobotMaterials;
   private currentEmotion: string = 'neutral';
+  /** +1 = face plane toward camera (mirror), -1 = behind the head (direct). */
+  private faceSign: 1 | -1 = 1;
+
+  /** In direct mode the robot faces away, so the face plane moves to the
+   *  far side of the head instead of floating in front of its back. */
+  public setViewMode(mode: 'mirror' | 'direct') {
+    this.faceSign = mode === 'direct' ? -1 : 1;
+  }
+
 
   constructor(group: THREE.Group, materials: RobotMaterials) {
     this.group = group;
@@ -109,7 +118,7 @@ export class FaceManager {
   }
 
   public updateFacePosition(headPos: THREE.Vector3, isVisible: boolean) {
-    this.updateFaceSet(this.frontFace, headPos, 0.31, isVisible);
+    this.updateFaceSet(this.frontFace, headPos, 0.31 * this.faceSign, isVisible);
     this.applyFacialExpression(this.currentEmotion);
   }
 
@@ -142,7 +151,7 @@ export class FaceManager {
   }
 
   private applyFacialExpression(emotion: string) {
-    this.applyExpressionToFace(this.frontFace, emotion, 0.31);
+    this.applyExpressionToFace(this.frontFace, emotion, 0.31 * this.faceSign);
   }
 
   private applyExpressionToFace(features: FaceFeatures, emotion: string, zOffset: number) {
