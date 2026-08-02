@@ -634,7 +634,10 @@ export class HumanoidRobot {
       basePos.y += 0.35;
       this.bones.head.position.copy(basePos);
       this.bones.head.position.x += Math.sin(time * 0.3) * 0.02;
-      this.bones.head.rotation.y = Math.sin(time * 0.3) * 0.05;
+      // Preserve the view-mode facing yaw; idle sway is an offset on top of it.
+      this.bones.head.rotation.y =
+        (this.viewMode === 'direct' ? Math.PI : 0) + Math.sin(time * 0.3) * 0.05;
+
     }
 
     if (this.bones.torso && this.bones.torso.visible) {
